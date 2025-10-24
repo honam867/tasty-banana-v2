@@ -1,0 +1,515 @@
+{
+  "master": {
+    "tasks": [],
+    "metadata": {
+      "created": "2025-10-11T06:05:34.976Z",
+      "updated": "2025-10-12T05:40:58.976Z",
+      "description": "Tasks for master context"
+    }
+  },
+  "refactor-drizzle": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "Migrate Database to Drizzle ORM with PostgreSQL",
+        "description": "Migrate the application's database from MongoDB (Mongoose) to PostgreSQL using Drizzle ORM, refactoring all data access logic, starting with the 'users' table for authentication.",
+        "details": "1.  **Install Dependencies**: Add `drizzle-orm`, `pg` (or `node-postgres`), and `drizzle-kit` to `package.json`. \n2.  **Update Database Configuration**: Modify `server/src/config/db/index.js` to remove Mongoose connection logic and integrate the Drizzle ORM PostgreSQL client. This will involve creating a `pg.Pool` instance and initializing Drizzle with it, using the `DATABASE_URL` environment variable. Ensure proper connection pooling and error handling are configured.\n3.  **Define Drizzle Schema**: Create a new file, e.g., `server/src/db/schema.js`, to define the Drizzle schema for the `users` table. The schema should mirror the existing Mongoose `User` model, including fields like `_id` (uuid or serial), `email`, `password`, `username`, `createdAt`, `updatedAt`, and any other relevant user-related fields. Pay attention to data types and constraints (e.g., `unique` for email, `notNull` for required fields).\n4.  **Configure Drizzle Kit for Migrations**: Set up `drizzle-kit` for schema introspection and migration generation. Create an initial migration to establish the `users` table in the PostgreSQL database. Integrate a command to run migrations on application startup or via a separate script.\n5.  **Refactor Data Access for 'users'**: Identify all controllers, services, and middlewares (e.g., in `server/src/controllers/auth.controller.js` and related authentication middleware) that interact with the Mongoose `User` model. Replace all Mongoose queries (e.g., `User.findOne`, `User.create`, `User.findById`) with equivalent Drizzle ORM queries using the newly defined `users` schema.\n6.  **Remove Mongoose Related Code**: Delete Mongoose model files (e.g., `server/src/models/User.js`) and remove any remaining Mongoose-specific imports or configurations throughout the codebase.\n7.  **Update Environment Variables**: Ensure the `.env` file or relevant configuration includes the `DATABASE_URL` pointing to the PostgreSQL instance.",
+        "testStrategy": "",
+        "status": "done",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Set up Drizzle ORM with PostgreSQL URL",
+            "description": "Install Drizzle packages, configure Postgres client using env POSTGRES_URL, initialize Drizzle in a new db module, and replace `server/src/config/db/index.js` connection to use Drizzle.",
+            "details": "<info added on 2025-10-11T07:54:54.930Z>\n## Implementation Complete ✅\n\n**Packages Installed:**\n- `drizzle-orm` - Core Drizzle ORM library\n- `pg` - PostgreSQL client for Node.js\n- `drizzle-kit` - Schema management and migration tools\n\n**Files Created:**\n1. **`server/src/db/drizzle.js`** - Main Drizzle configuration module\n   - Creates PostgreSQL connection pool with proper configuration (max: 20, timeout settings)\n   - Initializes Drizzle ORM with the pool\n   - Exports `db` instance for queries and `pool` for direct access\n   - Includes `testConnection()` function for connection validation\n   - Uses `POSTGRES_URL` environment variable\n\n2. **`server/drizzle.config.js`** - Drizzle Kit configuration\n   - Points to schema file at `./src/db/schema.js`\n   - Configures migration output directory as `./drizzle`\n   - Sets PostgreSQL as the database dialect\n\n3. **`server/src/db/schema.js`** - Placeholder for table schemas\n   - Will be populated with table definitions in task 1.3\n\n**Files Modified:**\n1. **`server/src/config/db/index.js`**\n   - Removed Mongoose import and connection logic\n   - Now imports and uses `testConnection` from Drizzle module\n   - Updated connection success message to reference PostgreSQL\n   - Changed environment variable from `DB_URL` to `POSTGRES_URL`\n\n2. **`server/package.json`**\n   - Added npm scripts for Drizzle operations:\n     - `db:generate` - Generate migrations from schema\n     - `db:push` - Push schema changes directly to DB\n     - `db:migrate` - Run migrations\n     - `db:studio` - Launch Drizzle Studio for DB management\n\n**Environment Variables Required:**\n- `POSTGRES_URL` - PostgreSQL connection string (format: `postgresql://username:password@localhost:5432/database_name`)\n\n**Next Steps:**\n- Update `.env` file to include `POSTGRES_URL` instead of `DB_URL`\n- Task 1.2 will remove remaining Mongoose dependencies\n- Task 1.3 will implement the `users` table schema\n</info added on 2025-10-11T07:54:54.930Z>",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 1
+          },
+          {
+            "id": 2,
+            "title": "Remove MongoDB/Mongoose logic and migrate data access to Drizzle",
+            "description": "Identify and remove Mongoose connections/usages in `server/src/config/db/index.js`, `server/src/middlewares/validation.js`, `server/src/middlewares/tokenHandler.js`, `server/src/controllers/auth.controller.js`, and models. Replace with Drizzle-based queries and repository functions.",
+            "details": "<info added on 2025-10-11T09:16:25.493Z>\n## Implementation Complete ✅\n\n**Files Created:**\n1. **`server/src/services/user.service.js`** - User repository/service layer\n   - `findUserById(id)` - Find user by UUID\n   - `findUserByUsername(username)` - Find user by username (case-insensitive)\n   - `findUserByEmail(email)` - Find user by email\n   - `findUserByPhone(phone)` - Find user by phone number\n   - `createUser(userData)` - Create new user\n   - `updateUserPassword(userId, newPassword)` - Update user password with timestamp\n   - `getUserForAuth(username)` - Get user with selected fields for authentication\n   - All functions use Drizzle ORM with proper `eq()` and `and()` operators\n   - Uses `.returning()` for insert/update operations to get the modified record\n\n**Files Modified:**\n\n1. **`server/src/middlewares/validation.js`**\n   - ✅ Removed `mongoose` import\n   - ✅ Replaced `mongoose.Types.ObjectId.isValid()` with UUID v4 regex validation\n   - ✅ Added UUID_REGEX constant for validating UUIDs\n\n2. **`server/src/middlewares/tokenHandler.js`**\n   - ✅ Removed `User` model import\n   - ✅ Imported `findUserById` from user service\n   - ✅ Updated `verifyToken()` to use `findUserById()` instead of `User.findById()`\n\n3. **`server/src/middlewares/roleHandler.js`**\n   - ✅ Removed `User` model import\n   - ✅ Imported `findUserById` from user service\n   - ✅ Updated `checkRole()` to use `findUserById()` instead of `User.findById()`\n\n4. **`server/src/middlewares/authValidation.js`**\n   - ✅ Removed `User` model import\n   - ✅ Imported `findUserByUsername` and `findUserByPhone` from user service\n   - ✅ Updated `isUsernameExist` validator to use async/await with `findUserByUsername()`\n   - ✅ Updated `isPhoneExist` validator to use async/await with `findUserByPhone()`\n\n5. **`server/src/controllers/auth.controller.js`**\n   - ✅ Removed `User` model import\n   - ✅ Imported `getUserForAuth`, `findUserByUsername`, `createUser`, `updateUserPassword` from user service\n   - ✅ Updated `login()` to use `getUserForAuth()` and changed `user._id` to `user.id`\n   - ✅ Updated `register()` to use `createUser()` and changed `newUser._id` to `newUser.id`\n   - ✅ Updated `changePassword()` to use `updateUserPassword()` and changed `user._id` to `user.id`\n   - ✅ Updated `resetPassword()` to use `findUserByUsername()` and `updateUserPassword()`, changed `isUserExist._id` to `isUserExist.id`\n\n6. **`server/package.json`**\n   - ✅ Removed `mongoose` dependency (was \"^8.15.1\")\n   - ✅ Retained all other dependencies\n\n**Removed:**\n- ✅ Mongoose package uninstalled from node_modules (removed 17 packages)\n- ✅ All Mongoose imports removed from codebase\n- ✅ All Mongoose query methods replaced with Drizzle ORM equivalents\n\n**Key Changes:**\n- ID field changed from MongoDB ObjectId (`_id`) to UUID (`id`)\n- All `User.findOne()`, `User.findById()`, `User.create()`, `User.findByIdAndUpdate()` replaced with Drizzle service functions\n- Validation changed from ObjectId validation to UUID v4 validation\n- All database operations now use Drizzle ORM through the service layer\n\n**Next Steps:**\n- Task 1.3 will implement the actual `users` table schema in `server/src/db/schema.js`\n- The schema will need to export a `users` table that the service functions are importing\n- Once schema is implemented, run `npm run db:push` to create the table in PostgreSQL\n</info added on 2025-10-11T09:16:25.493Z>",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 1
+          },
+          {
+            "id": 3,
+            "title": "Implement `users` table schema and queries for auth",
+            "description": "Create `users` table with fields: id (uuid), username (unique, lowercase), email (unique), password (encrypted), firstName, lastName, phone, role, status, createdAt, updatedAt. Implement Drizzle queries used by login/register/changePassword and update auth code to use them.",
+            "details": "<info added on 2025-10-11T09:27:53.033Z>\n{\"new_content\": \"## Implementation Complete ✅\\n\\n**Files Created:**\\n\\n1. **`server/src/db/schema.js`** - Complete users table schema\\n   - Uses Drizzle ORM's `pgTable` for PostgreSQL table definition\\n   - **Primary Key**: `id` - UUID v4 with `defaultRandom()` (gen_random_uuid())\\n   - **Authentication fields**:\\n     - `username` - VARCHAR(255), NOT NULL, UNIQUE\\n     - `password` - VARCHAR(500), NOT NULL (supports encrypted passwords)\\n     - `email` - VARCHAR(255), NOT NULL, UNIQUE\\n   - **Profile fields**:\\n     - `firstName` - VARCHAR(100), NOT NULL (maps to first_name in DB)\\n     - `lastName` - VARCHAR(100), NOT NULL (maps to last_name in DB)\\n     - `phone` - VARCHAR(20), NOT NULL, UNIQUE\\n   - **System fields**:\\n     - `role` - VARCHAR(50), NOT NULL, DEFAULT 'user'\\n     - `status` - VARCHAR(50), NOT NULL, DEFAULT 'active'\\n   - **Timestamps**:\\n     - `createdAt` - TIMESTAMP, NOT NULL, DEFAULT now()\\n     - `updatedAt` - TIMESTAMP, NOT NULL, DEFAULT now()\\n   - Schema exported as `users` table for use in services\\n\\n2. **`server/src/db/migrate.js`** - Migration runner script\\n   - Programmatically applies migrations from `drizzle/` folder\\n   - Uses Drizzle's migrate function with PostgreSQL pool\\n   - Proper error handling and cleanup\\n   - Exits with code 1 on failure for CI/CD compatibility\\n\\n3. **`server/DATABASE_SETUP.md`** - Complete setup documentation\\n   - Prerequisites and PostgreSQL installation guide\\n   - Environment variable configuration\\n   - Migration commands and workflow\\n   - Table schema reference\\n   - Troubleshooting section\\n   - Drizzle Studio usage\\n\\n**Files Modified:**\\n\\n1. **`server/package.json`**\\n   - Updated `db:migrate` script to run `node src/db/migrate.js` instead of drizzle-kit CLI\\n   - This allows programmatic migration execution with better error handling\\n\\n**Generated Files:**\\n\\n1. **`server/drizzle/0000_jazzy_alex_power.sql`** - Initial migration\\n   - Creates `users` table with all constraints\\n   - UUID primary key with gen_random_uuid()\\n   - Unique constraints on username, email, phone\\n   - Default values for role ('user') and status ('active')\\n   - Timestamp defaults with now()\\n\\n2. **`server/drizzle/meta/_journal.json`** - Migration metadata\\n   - Tracks applied migrations\\n   - Drizzle Kit uses this to determine which migrations to run\\n\\n3. **`server/drizzle/meta/0000_snapshot.json`** - Schema snapshot\\n   - Complete schema state after this migration\\n   - Used by Drizzle Kit for schema diffing\\n\\n**Schema Alignment:**\\n\\n✅ Default values align with `server/src/utils/constant.js`:\\n   - `role: 'user'` matches `ROLE.USER`\\n   - `status: 'active'` matches `STATUS.ACTIVE`\\n\\n✅ All fields match what the service layer expects:\\n   - Service functions already import and use the `users` table\\n   - Field names match between schema definition and service usage\\n\\n**Database Setup Instructions:**\\n\\n1. **Create PostgreSQL database**:\\n   ```sql\\n   CREATE DATABASE your_database_name;\\n   ```\\n\\n2. **Set environment variable** in `server/.env`:\\n   ```env\\n   POSTGRES_URL=postgresql://username:password@localhost:5432/database_name\\n   ```\\n\\n3. **Run migrations**:\\n   ```bash\\n   cd server\\n   npm run db:migrate\\n   ```\\n\\n   OR use push for development:\\n   ```bash\\n   npm run db:push\\n   ```\\n\\n4. **Verify with Drizzle Studio** (optional):\\n   ```bash\\n   npm run db:studio\\n   ```\\n\\n**Migration Complete! 🎉**\\n\\nThe database schema is now fully defined and ready to be applied to PostgreSQL. All authentication queries from task 1.2 will work once migrations are run.\"}\n</info added on 2025-10-11T09:27:53.033Z>",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 1
+          },
+          {
+            "id": 4,
+            "title": "Refactor users schema: remove firstName, lastName, phone and related references",
+            "description": "Update Drizzle `users` schema to drop `firstName`, `lastName`, and `phone` columns. Remove or adjust all references in controllers, services, middlewares, validators, and tests. Create a migration, update types, and ensure auth flows (register/login/update) still work without these fields.",
+            "details": "Scope:\n- Update `server/src/db/schema.js` users table to remove fields.\n- Generate and apply Drizzle migration to drop columns.\n- Remove references in `auth.controller.js`, `user.service.js`, `authValidation.js`, and tests.\n- Update API contracts and response mappers.\n- Verify tests pass.\nAcceptance:\n- No code references to removed fields remain.\n- DB migration runs successfully.\n- All auth endpoints work and tests updated.\n\n<info added on 2025-10-11T11:48:12.644Z>\nImplementation complete\n\n- Removed firstName, lastName, and phone from users schema (server/src/db/schema.js), retaining id, username, password, email, role, status, timestamps.\n- Generated and applied migration drizzle/0001_clammy_ravenous.sql to drop users_phone_unique constraint and the first_name, last_name, phone columns; migration ran successfully via npm run db:migrate.\n- Service layer: updated getUserForAuth to exclude removed fields; removed findUserByPhone.\n- Controller layer: login and register endpoints no longer include or accept removed fields; createUser call updated; added email, role, status to register response.\n- Validation: removed import of findUserByPhone; removed isValidFirstName, isValidLastName, isValidPhone, isPhoneExist.\n- Routes: removed isPhoneExist from register route chain.\n- Tests: updated test helpers and register.spec to remove references to removed fields; switched assertions to email-based lookups; all tests passing (2/2).\n- Files modified: server/src/db/schema.js; server/drizzle/0001_clammy_ravenous.sql; server/src/services/user.service.js; server/src/controllers/auth.controller.js; server/src/middlewares/authValidation.js; server/src/routes/auth.route.js; server/tests/utils/testHelpers.js; server/tests/auth/register.spec.js.\n- Verification: no code references to removed fields remain; migration successful; login and register endpoints function as expected; no compilation errors; database schema matches code.\n</info added on 2025-10-11T11:48:12.644Z>",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 1
+          },
+          {
+            "id": 5,
+            "title": "Implement email validation utility `isEmailExist` and integrate",
+            "description": "Create a reusable validator to check if an email already exists in the database using Drizzle. Integrate into registration flow and any endpoints requiring email uniqueness.",
+            "details": "Implementation:\n- Add `isEmailExist(email)` utility in validators/services layer using Drizzle query on `users.email`.\n- Use lodash `get`, `isEmpty`, `isNil` patterns per workspace rules.\n- Wire into `authValidation.js` for register and any update-email endpoints.\n- Add unit tests.\nAcceptance:\n- Duplicate email registration is blocked with 400 and clear message.\n- Unit tests cover existing and non-existing cases.\n<info added on 2025-10-11T12:30:25.316Z>\n- Added isEmailExist validator in server/src/middlewares/authValidation.js using findUserByEmail() (Drizzle query on users.email) and lodash isNil for null checks; follows workspace patterns (lodash get/isNil, no optional chaining).\n- Updated server/src/routes/auth.route.js to include isValidEmail and isEmailExist in the register middleware chain before password validators (order: email format → email uniqueness → password length → password complexity → confirm password).\n- Added tests in server/tests/auth/register.spec.js covering invalid email formats, duplicate email rejection with 400 and \"Email already exists\", successful registration with different emails, and case sensitivity; tests use lodash get() for safe access.\n- Enhanced server/tests/utils/testHelpers.js userFactory to support passwordPlain while retaining password compatibility; passwords encrypted via encryptPassword().\n- All tests passing (2 existing + 4 new).\n- Acceptance met: duplicate email registration blocked with 400 and clear \"Email already exists\" message; tests cover existing and non-existing cases; validator uses Drizzle via findUserByEmail(); adheres to workspace rules and existing error structure.\n- Note: email comparison is currently case-sensitive; consider normalizing emails for case-insensitive uniqueness.\n</info added on 2025-10-11T12:30:25.316Z>",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 1
+          }
+        ]
+      }
+    ],
+    "metadata": {
+      "created": "2025-10-11T06:58:54.372Z",
+      "updated": "2025-10-11T12:30:31.530Z",
+      "description": "Tag created on 10/11/2025"
+    }
+  },
+  "test-authentication": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "Implement end-to-end tests for authentication routes (login, register, forgot-password, change-password)",
+        "description": "Create comprehensive automated tests covering success and failure scenarios for all authentication routes, including validation, token generation/verification, OTP handling, and response structure.",
+        "details": "Scope and goals:\n- Build a complete test suite for /api/auth/login, /api/auth/register, /api/auth/forgot-password, and /api/auth/change-password.\n- Cover success paths, validation errors, auth failures, OTP generation/storage checks, and response contracts.\n- Ensure tests are deterministic, isolated, and CI-ready.\n\nAssumptions (adapt to project stack as needed):\n- Node.js/Express API with JWT-based auth.\n- Test runner: Jest (or Mocha) and Supertest for HTTP assertions.\n- Database: Postgres/MySQL/Mongo (use a dedicated test DB/schema). Passwords hashed with bcrypt.\n- OTP storage via Redis or a repository abstraction (to be mocked in tests).\n\nTest environment setup:\n1) Configuration\n- Add a test config: NODE_ENV=test, JWT_SECRET=testing-secret, DB URL to a disposable database/schema, and a mock Redis URL if applicable.\n- Ensure migrations/schemas run before tests.\n- Provide a .env.test and load it in test bootstrap.\n\n2) App bootstrap for tests\n- Export an app factory (createApp) that returns an Express instance with all middlewares and routes.\n- In tests, import app and wrap with Supertest request(app).\n\n3) Data factories and utilities\n- userFactory({ phone, passwordPlain, overrides }) that:\n  - Hashes passwordPlain using the same algorithm as production.\n  - Inserts user into the test DB and returns { id, phone, passwordHash, ... }.\n- cleanup utilities to truncate tables/collections between tests.\n- jwt helpers:\n  - signTestToken(payload, expiry) using JWT_SECRET.\n  - parseJwt for structural assertions.\n- otp mock:\n  - If using Redis, use an in-memory map or ioredis-mock. Expose setOtp(phone, code), getOtp(phone).\n  - Intercept OTP generation function via dependency injection or jest.mock to capture generated code without sending SMS.\n\n4) Test file structure\n- tests/auth/login.spec.[ts|js]\n- tests/auth/register.spec.[ts|js]\n- tests/auth/forgot-password.spec.[ts|js]\n- tests/auth/change-password.spec.[ts|js]\n- tests/setup.ts for global setup/teardown (DB connect, migrate, clear, close).\n\nRoute-specific test cases and approach:\n1) Login (POST /api/auth/login)\n- Successful login with valid credentials\n  - Arrange: create user with known phone/password.\n  - Act: POST with correct credentials.\n  - Assert: 200 OK; body contains token, user data; token decodes with correct sub; no password in response.\n- Failed login with invalid password\n  - 401 Unauthorized; error code/message consistent.\n- Failed login with non-existent user\n  - 401 Unauthorized; do not reveal user existence.\n- Password length validation\n  - 400 Bad Request if below min length.\n- Response structure and JWT token generation\n  - Validate fields: { token: string, user: { id, phone, ... } } and token expiry claims.\n\n2) Register (POST /api/auth/register)\n- Successful registration with valid data\n  - 201 Created; user persisted; password hashed; token may be returned per spec.\n- Password length validation\n  - 400 with validation error details.\n- Password regex validation (complexity)\n  - 400 when complexity not met; 201 when met.\n- Confirm password matching\n  - 400 when mismatch.\n- Phone number uniqueness check and duplicate rejection\n  - Pre-insert user; second request returns 409 Conflict (or 400) with clear error.\n\n3) Forgot Password (POST /api/auth/forgot-password)\n- Password reset request with valid phone\n  - 200 OK; OTP generated and stored via mock; response structure verified; rate limiting headers if applicable.\n- Invalid/non-existent phone\n  - 200 or 404/400 per spec; ensure no OTP stored for invalid phone; do not leak user existence if design requires.\n- OTP generation and storage\n  - Assert OTP code format (length, numeric) and TTL set (if available via mock API).\n- Response structure\n  - Validate response fields (e.g., message, correlationId), never include the OTP in response.\n\n4) Change Password (PUT /api/auth/change-password)\n- Successful password change with valid token\n  - Arrange: create user, login to obtain token (or signTestToken), set old password.\n  - Act: PUT with Bearer token, body: { oldPassword, newPassword, confirmPassword }.\n  - Assert: 200 OK; can login with new password; old password no longer works; response omits sensitive fields.\n- Password change without token (unauthorized)\n  - 401 Unauthorized; verify WWW-Authenticate header if applicable.\n- Password change with invalid token\n  - 401 Unauthorized; distinguish token invalid vs expired if implemented.\n- Password length validation and regex validation\n  - 400 with details.\n- Confirm password matching\n  - 400 error.\n- Old password verification\n  - 400/401 when oldPassword incorrect; ensure password not changed.\n\nImplementation notes:\n- Ensure consistent error shape across endpoints (status, code, message, fieldErrors[]). Centralize a toMatchErrorShape helper.\n- Ensure DB is cleaned between tests (truncate in a transaction, or use testcontainers for isolation).\n- Time-based assertions: freeze time with jest.useFakeTimers or a clock mock if token expiry/TTL needs checking.\n- Add npm scripts: test, test:watch, test:coverage.\n- Set coverage thresholds for lines/branches to enforce complete coverage of the listed cases.\n",
+        "testStrategy": "Execution\n- Pre-req: Test DB reachable, env .env.test configured, migrations runnable.\n- Run: npm run test (or equivalent). In CI, run migrations, then tests with coverage.\n\nVerification checklist\n- Login\n  - Valid credentials return 200 with JWT containing expected claims (sub=userId, iat, exp) and user payload without sensitive fields.\n  - Invalid password and non-existent user both return 401 and do not leak user existence.\n  - Password length validation returns 400 with fieldErrors for password.\n- Register\n  - Valid data returns 201; user exists in DB with hashed password; duplicate phone returns 409 (or project-specific error); validation errors for length/complexity/mismatch return 400 with fieldErrors.\n- Forgot Password\n  - Valid phone returns 200; OTP stored in mock with correct TTL; invalid phone results per spec without OTP creation; response does not include OTP.\n- Change Password\n  - Valid token + correct oldPassword updates hash; subsequent login works only with new password.\n  - Missing/invalid token returns 401; incorrect oldPassword returns appropriate error; validation errors for length/complexity/mismatch return 400.\n\nQuality gates\n- All tests deterministic and isolated (no order dependency).\n- Coverage >= 90% lines and branches for auth route handlers and validators.\n- Lint and type checks pass.\n- CI job executes tests with green status.",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Write E2E tests for Login route (POST /api/auth/login)",
+            "description": "Create a comprehensive end-to-end test suite for /api/auth/login covering success, validation, and authentication failures. Verify JWT generation/claims, response structure, and security (no sensitive fields). Ensure tests are deterministic and isolated.",
+            "dependencies": [],
+            "details": "Implement tests in tests/auth/login.spec.(ts|js) using Jest and Supertest with the app from createApp(). Use userFactory to seed a user with known phone and password. Validate: 200 on valid credentials; body contains { token, user: { id, phone, ... } } without password; token decodes with correct sub, iat, exp using parseJwt. Assert 401 for invalid password and non-existent user without leaking user existence. Assert 400 for password minimum length and any schema validation errors (e.g., missing phone). Use toMatchErrorShape for error consistency. Freeze time with jest.useFakeTimers for expiry-related checks as needed. Truncate DB and reset OTP/redis mocks between tests via cleanup utilities. Keep tests independent and idempotent.",
+            "status": "pending",
+            "testStrategy": "- Setup: import app via createApp(); load .env.test in tests/setup.ts; run migrations before tests.\n- Arrange: use userFactory({ phone, passwordPlain }) to create a user.\n- Success case: POST /api/auth/login with correct credentials -> expect 200; assert token is string, user object exists, no password fields; decode token and assert sub=userId, iat <= now, exp > iat.\n- Invalid password: expect 401 and standardized error shape.\n- Non-existent user: expect 401 with same generic error; ensure no timing or message differences that reveal existence.\n- Validation: short password, missing fields, invalid phone format -> expect 400 with fieldErrors[].\n- Response contract: verify exact keys/types and absence of sensitive data.\n- Determinism: use jest.useFakeTimers for any time-based checks; cleanup DB tables afterEach.\n- Coverage: include branches for all error paths; run npm run test:coverage and meet thresholds."
+          },
+          {
+            "id": 2,
+            "title": "Write E2E tests for Register route (POST /api/auth/register)",
+            "description": "Implement an end-to-end test suite for /api/auth/register covering successful registration, validation errors, password complexity, confirm password, and phone uniqueness. Verify persistence, hashing, and response contract.",
+            "dependencies": [],
+            "details": "Create tests in tests/auth/register.spec.(ts|js). Use Supertest with app from createApp(). Validate: 201 on valid data; fetch user from DB to confirm password is hashed (bcrypt) and phone stored; optionally assert token presence/claims if API returns one. Assert 400 for password min length and complexity regex failures; 400 when confirmPassword mismatches; 409 (or 400 per spec) when phone is already registered (pre-insert with userFactory). Ensure consistent error shape via toMatchErrorShape. Clean DB between tests. Avoid leaking sensitive data in responses. Use data-driven test cases to cover multiple password patterns.\n<info added on 2025-10-11T10:31:29.745Z>\n- Implementation completed: tests/auth/register.spec.js created with 23 end-to-end tests covering success, validation errors, password complexity, confirm password, phone uniqueness, required fields, security, and edge cases (mixed-case emails, special characters in names, Vietnamese phone formats, multiple valid password patterns).\n- Test infrastructure added: jest.config.js (ESM, coverage 80%), tests/setup.js (global setup/teardown, DB cleanup), tests/utils/appFactory.js (Express app factory), tests/utils/testHelpers.js (lodash-based helpers), tests/README.md (setup/run docs), .env.test.example, .gitignore updated to exclude .env.test.\n- Utilities implemented (lodash only): userFactory(overrides), encryptPassword(password) using production CryptoJS approach, generateTestToken(userId, remember), parseJwt(token), expectErrorShape(response, status), expectSuccessShape(response, status), generateValidPhone(), expectValidToken(token, userId).\n- Assertions include: 201 on valid registration with username generation from email, DB persistence verification with encrypted (non-plain) password and stored phone, token presence and claims validation (id, iat, exp, future expiry), 400 for password length/complexity and confirmPassword mismatch, 409 (or per spec) for duplicate phone, required field validation, consistent error/success shapes, and no sensitive fields in responses.\n- Vietnamese phone support validated across prefixes (e.g., 032, 056, 070, 081, 090) via generateValidPhone().\n- Project rules followed: lodash utilities, no optional chaining or nullish coalescing, ES6+ with async/await, explicit try-catch error handling, AAA test pattern, descriptive assertions.\n- Package scripts updated: test (Jest ESM), test:watch, test:coverage, test:register (runs only register specs).\n- Setup to run: create test DB (e.g., tasty_banana_test), copy .env.test.example to .env.test with real credentials, run migrations, then npm test or npm run test:register.\n- Expected outcome: all 23 tests pass with response contract validation, DB persistence and password encryption checks (stored value length > 20), valid JWT claims, no sensitive data leaks, and full test isolation via automatic DB cleanup after each test.\n</info added on 2025-10-11T10:31:29.745Z>\n<info added on 2025-10-11T10:36:04.332Z>\nWindows compatibility fix:\n- Resolved 'NODE_ENV is not recognized as an internal or external command' on Windows by adding cross-env@^7.0.3 (dev) and prefixing all test scripts with cross-env NODE_ENV=test.\n- Updated scripts: test, test:watch, test:coverage, test:register.\n- Tests now run cross-platform (Windows/macOS/Linux). On Windows, execute: npm run test:register.\n</info added on 2025-10-11T10:36:04.332Z>\n<info added on 2025-10-11T10:40:13.373Z>\nSimplified test setup applied for the register E2E suite:\n- Removed cross-env and NODE_ENV=test from scripts; deleted .env.test.example; removed coverage thresholds from jest.config.js; simplified tests/setup.js (no .env.test loading or NODE_ENV checks).\n- Updated package.json scripts:\n  - test: node --experimental-vm-modules node_modules/jest/bin/jest.js\n  - test:register: node --experimental-vm-modules node_modules/jest/bin/jest.js tests/auth/register.spec.js\n  - test:login: node --experimental-vm-modules node_modules/jest/bin/jest.js tests/auth/login.spec.js\n- How to run: npm run test:register for the register route; npm test for all tests.\n- Uses existing .env and existing database; auto-cleanup removes test users after each test.\n- README simplified with a quick start; no separate test configuration required.\n</info added on 2025-10-11T10:40:13.373Z>",
+            "status": "done",
+            "testStrategy": "- Arrange: prepare unique phone numbers; ensure DB clean via cleanup utilities.\n- Happy path: POST /api/auth/register with valid phone/password/confirmPassword -> expect 201; query DB to verify user exists and passwordHash !== plain; if token returned, decode and assert sub=userId.\n- Password validation: too short, missing complexity (e.g., no digits/uppercase per policy) -> expect 400 with fieldErrors for password.\n- Confirm password: mismatch -> 400 with fieldErrors for confirmPassword.\n- Uniqueness: pre-create user with same phone via userFactory; second register -> expect 409 (or 400 if spec indicates) with clear code/message; ensure only one DB record remains.\n- Contract checks: assert response shape, omit sensitive fields.\n- Determinism: fixed input values; truncate tables afterEach; run with coverage."
+          },
+          {
+            "id": 3,
+            "title": "Write E2E tests for Forgot Password route (POST /api/auth/forgot-password)",
+            "description": "Build E2E tests for /api/auth/forgot-password verifying OTP generation, storage, TTL, response structure, and behavior for valid and invalid phones. Ensure no leakage of user existence and no OTP exposure in responses.",
+            "dependencies": [],
+            "details": "Place tests in tests/auth/forgot-password.spec.(ts|js). Mock OTP repository/Redis via in-memory map or ioredis-mock. Expose setOtp/getOtp helpers to assert storage and TTL. Validate: for an existing phone, 200 OK with generic message; OTP generated with correct format (e.g., 6-digit numeric) and stored with TTL; response never contains OTP. For non-existent/invalid phone, follow spec (200 or 4xx): ensure no OTP stored and no user existence leak. Optionally assert rate-limit headers if implemented. Use dependency injection or jest.mock to intercept OTP generation without sending SMS. Cleanup OTP store and DB between tests.",
+            "status": "pending",
+            "testStrategy": "- Arrange: create user with userFactory for valid phone; ensure OTP store is empty.\n- Happy path: POST /api/auth/forgot-password with existing phone -> expect 200; check getOtp(phone) returns code matching /^[0-9]{6}$/ and TTL > 0; response includes message/correlationId but no OTP.\n- Invalid phone format: expect 400 with fieldErrors.\n- Non-existent phone: expect 200 (if non-leak design) or 404/400 per spec; assert no OTP stored for that phone.\n- Rate limiting (if enabled): send multiple requests and assert relevant headers/status once the limit is hit; otherwise skip with conditional.\n- Security: ensure response and logs (if capturable) do not expose OTP.\n- Cleanup: clear OTP mock and truncate DB after each test; run with coverage thresholds."
+          },
+          {
+            "id": 4,
+            "title": "Write E2E tests for Change Password route (PUT /api/auth/change-password)",
+            "description": "Create E2E tests for /api/auth/change-password covering successful password change with valid token, unauthorized scenarios (no/invalid/expired token), validation errors, confirm password mismatch, and incorrect old password handling. Verify login works only with new password.",
+            "dependencies": [],
+            "details": "Implement tests in tests/auth/change-password.spec.(ts|js). Use userFactory to create a user and set an initial password. Obtain a Bearer token via login or signTestToken helper. Success: PUT with { oldPassword, newPassword, confirmPassword } -> 200 OK; then login with newPassword succeeds and oldPassword fails. Validate response omits sensitive fields. Unauthorized: missing token -> 401 (check WWW-Authenticate header if present); invalid or expired token -> 401 with appropriate code. Validation: enforce password length/complexity and confirmPassword match -> 400 with fieldErrors. Incorrect oldPassword -> 400/401 and ensure stored hash unchanged. Clean DB between tests and freeze time for token expiry checks as needed.",
+            "status": "pending",
+            "testStrategy": "- Arrange: create user via userFactory; login to obtain JWT (preferred) or use signTestToken with correct sub.\n- Happy path: PUT /api/auth/change-password with valid Bearer token and matching new password -> expect 200; assert subsequent login with new password returns 200; login with old password returns 401.\n- Unauthorized: no token -> 401; invalid signature token -> 401; expired token (advance fake timers beyond exp) -> 401; verify error shape and optional WWW-Authenticate header.\n- Validation: short/weak new password -> 400; confirmPassword mismatch -> 400 with fieldErrors.\n- Wrong oldPassword: expect 400/401; assert DB password hash remains the same (query DB or ensure old password still works if request rejected).\n- Contract/security: response excludes password/hash fields; standardized error format on failures.\n- Cleanup: truncate DB and reset timers/mocks after each; run coverage and ensure branch coverage for all paths."
+          }
+        ]
+      }
+    ],
+    "metadata": {
+      "created": "2025-10-11T10:21:02.252Z",
+      "updated": "2025-10-11T10:31:37.900Z",
+      "description": "Authentication testing tasks for all auth routes"
+    }
+  },
+  "be-design-database": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "Initialize Drizzle ORM and Define Database Enums",
+        "description": "Set up Drizzle ORM for PostgreSQL database interaction and define the custom enum types required for various table columns.",
+        "details": "Initialize the Drizzle ORM environment, ensuring connectivity to the PostgreSQL database. Define the following enum types in the Drizzle schema, which will map to PostgreSQL ENUM types:\n- `message_role`: 'user', 'assistant', 'tool', 'system'\n- `run_status`: 'queued', 'processing', 'succeeded', 'failed', 'canceled'\n- `job_type`: 'text2img', 'img2img', 'inpaint', 'upscale', 'variation'\n- `file_purpose`: 'init', 'mask', 'reference', 'attachment'\n\nExample Drizzle schema for enums:\n```typescript\nimport { pgEnum } from 'drizzle-orm/pg-core';\n\nexport const messageRoleEnum = pgEnum('message_role', ['user', 'assistant', 'tool', 'system']);\nexport const runStatusEnum = pgEnum('run_status', ['queued', 'processing', 'succeeded', 'failed', 'canceled']);\nexport const jobTypeEnum = pgEnum('job_type', ['text2img', 'img2img', 'inpaint', 'upscale', 'variation']);\nexport const filePurposeEnum = pgEnum('file_purpose', ['init', 'mask', 'reference', 'attachment']);\n```",
+        "testStrategy": "Verify that Drizzle ORM can successfully connect to the PostgreSQL database. Generate and run a Drizzle migration to create the enum types in the database. Query the database to confirm the existence and valid values of each enum type.",
+        "priority": "high",
+        "dependencies": [],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Install Drizzle ORM, Drizzle Kit, and PostgreSQL Driver",
+            "description": "Add the necessary npm packages (`drizzle-orm`, `drizzle-kit`, `pg`) to the project to enable database interaction and migrations.",
+            "dependencies": [],
+            "details": "Execute `npm install drizzle-orm drizzle-kit pg` and `npm install -D @types/pg drizzle`. Verify these dependencies are correctly listed in the `package.json` file. This is the foundational step for all database operations.\n<info added on 2025-10-12T04:25:55.210Z>\nVerified packages in package.json:\n- dependencies: drizzle-orm ^0.44.6, drizzle-kit ^0.31.5, pg ^8.16.3\n- devDependencies: @types/pg ^8.15.5\n\nAll installations successful. Foundation for Drizzle ORM operations is in place; proceed to create and configure drizzle.config.ts.\n</info added on 2025-10-12T04:25:55.210Z>",
+            "status": "done",
+            "testStrategy": "Check `package.json` and `node_modules` to confirm the packages are installed correctly. A successful `npm install` with no errors is the primary validation."
+          },
+          {
+            "id": 2,
+            "title": "Create and Configure `drizzle.config.ts`",
+            "description": "Set up the Drizzle Kit configuration file to manage database migrations, specifying the schema location, output directory, and database driver.",
+            "dependencies": [
+              1
+            ],
+            "details": "Create a `drizzle.config.ts` file in the project root. Configure it to use the `pg` driver, point to `./src/db/schema.ts` for the schema, and set the migration output directory to `./drizzle`. Ensure `dbCredentials` are configured to read from `process.env.DATABASE_URL`.\n<info added on 2025-10-12T04:29:35.026Z>\nVerified existing configuration in drizzle.config.js (pg dialect, schema ./src/db/schema.js, migrations ./drizzle, DATABASE_URL from env). No changes required. If migrating to TypeScript later, rename to drizzle.config.ts and update schema path to ./src/db/schema.ts.\n</info added on 2025-10-12T04:29:35.026Z>",
+            "status": "done",
+            "testStrategy": "Run `npx drizzle-kit check` from the command line. A successful execution will validate the configuration file and its ability to connect to the database without generating a migration."
+          },
+          {
+            "id": 3,
+            "title": "Implement and Export Drizzle Database Instance",
+            "description": "Create a module to initialize the PostgreSQL connection pool and the Drizzle instance, making it a singleton available for the entire application.",
+            "dependencies": [
+              1
+            ],
+            "details": "Create a file at `src/db/index.ts`. In this file, import `Pool` from `pg` and `drizzle` from `drizzle-orm/node-postgres`. Initialize a new `Pool` using the `DATABASE_URL` from environment variables. Create and export a `db` constant by calling `drizzle()` with the pool.\n<info added on 2025-10-12T04:29:47.770Z>\nImplementation already exists at src/db/drizzle.js:\n- Initializes PostgreSQL Pool from POSTGRES_URL\n- Creates and exports the Drizzle db instance\n- Exports the Pool for direct access\n- Provides testConnection() for connection validation\n- Handles missing DATABASE_URL errors\n\nNo action needed. If other modules expect src/db/index.ts or the DATABASE_URL env name, add a thin re-export shim at src/db/index.ts that exports db, pool, and testConnection from ./drizzle.js, or update imports/env to match.\n</info added on 2025-10-12T04:29:47.770Z>",
+            "status": "done",
+            "testStrategy": "Create a temporary test script that imports the `db` instance and performs a basic, raw SQL query (e.g., `db.execute(sql`SELECT 1`)`) to verify the connection is established successfully."
+          },
+          {
+            "id": 4,
+            "title": "Define All Required Enums in `src/db/schema.ts`",
+            "description": "Define the Drizzle schema for the four required PostgreSQL ENUM types: `message_role`, `run_status`, `job_type`, and `file_purpose`.",
+            "dependencies": [],
+            "details": "In the `src/db/schema.ts` file, import `pgEnum` from `drizzle-orm/pg-core`. Define and export `messageRoleEnum`, `runStatusEnum`, `jobTypeEnum`, and `filePurposeEnum` using the `pgEnum` helper, providing the specified values for each.\n<info added on 2025-10-12T04:31:02.172Z>\nImplemented and exported messageRoleEnum, runStatusEnum, jobTypeEnum, and filePurposeEnum using pgEnum in src/db/schema.js. Added pgEnum import. ESLint check passed with no syntax errors. Enums are ready for use in table schemas; proceed to generate and apply the initial migration.\n</info added on 2025-10-12T04:31:02.172Z>",
+            "status": "done",
+            "testStrategy": "Lint the `src/db/schema.ts` file to ensure there are no syntax errors. The successful generation of a migration in the subsequent step will also serve as a primary test of correctness."
+          },
+          {
+            "id": 5,
+            "title": "Generate and Apply Initial Migration for Enums",
+            "description": "Use Drizzle Kit to generate an SQL migration file from the schema definitions and apply it to the database to create the enum types.",
+            "dependencies": [
+              2,
+              3,
+              4
+            ],
+            "details": "Run `npx drizzle-kit generate:pg` to create a new migration file in the `./drizzle` directory. Inspect the generated SQL to confirm it contains `CREATE TYPE` statements for the four enums. Run the migration against the database.\n<info added on 2025-10-12T04:32:07.705Z>\n- Migration generated: drizzle/0003_bizarre_vivisector.sql\n- Verified CREATE TYPE statements for:\n  - file_purpose: init, mask, reference, attachment\n  - job_type: text2img, img2img, inpaint, upscale, variation\n  - message_role: user, assistant, tool, system\n  - run_status: queued, processing, succeeded, failed, canceled\n- Migration applied successfully; all enum types are created and available for use in table schemas\n</info added on 2025-10-12T04:32:07.705Z>",
+            "status": "done",
+            "testStrategy": "After applying the migration, connect to the PostgreSQL database using `psql` or a DB client. Execute `\\dT` to list custom data types and verify that `message_role`, `run_status`, `job_type`, and `file_purpose` exist and have the correct labels."
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Create 'threads' Table Schema",
+        "description": "Drizzle ORM schema and migration for the 'threads' table have been implemented and applied to store chat conversations. The schema is defined in server/src/db/schema.js and the migration drizzle/0004_chief_shen.sql creates the table, establishes the foreign key to users, and adds the owner index. The table is ready for use in the application.",
+        "status": "done",
+        "dependencies": [
+          1
+        ],
+        "priority": "high",
+        "details": "Implementation summary:\n- Schema file: server/src/db/schema.js (Drizzle ORM)\n- Imports include index to support index definition\n- Table: threads\n  - id: UUID primary key with defaultRandom() (gen_random_uuid())\n  - ownerId: UUID, NOT NULL, foreign key referencing users.id\n  - createdAt: timestamptz (withTimezone: true), NOT NULL, default now()\n  - updatedAt: timestamptz (withTimezone: true), NOT NULL, default now() (to be updated by a trigger in the future)\n- Index: idx_threads_owner on ownerId for efficient user-based thread lookups\n\nMigration:\n- File: drizzle/0004_chief_shen.sql\n- Includes: CREATE TABLE with all columns and constraints, foreign key to users, and index creation on owner_id\n- Applied successfully to PostgreSQL without errors\n\nNotes:\n- Structure follows existing schema patterns (users table)\n- Timestamps use UTC via withTimezone: true\n- Foreign key relationship is properly established",
+        "testStrategy": "Verification completed:\n- Ran the generated migration (drizzle/0004_chief_shen.sql); it applied without errors\n- Confirmed threads table exists with correct column types (UUID, timestamptz), primary key, and NOT NULL constraints\n- Verified foreign key constraint on owner_id references users(id)\n- Verified idx_threads_owner index exists on owner_id\n- Confirmed timestamps are created with withTimezone: true for UTC handling\n\nIf re-validating in a new environment:\n1) Run migrations (e.g., drizzle-kit migrate) and ensure success\n2) Inspect schema via psql or a DB tool: \\d+ threads\n3) Insert a test row and verify owner_id constraint and index behavior\n4) Ensure created_at and updated_at default to now() on insert",
+        "subtasks": []
+      },
+      {
+        "id": 3,
+        "title": "Create 'messages' Table Schema",
+        "description": "Implement the Drizzle ORM schema and migration for the 'messages' table, linking chat messages to threads and utilizing the `message_role` enum.",
+        "details": "Define the `messages` table using Drizzle ORM. The table should include:\n- `id`: UUID, primary key, auto-generated.\n- `thread_id`: UUID, foreign key referencing `threads.id`, not null, with `onDelete('cascade')`.\n- `role`: `message_role` enum type, not null.\n- `content`: Text, not null.\n- `status`: Text, default 'pending', not null (to track message state like 'processing', 'succeeded', 'failed').\n- `created_at`: `timestamptz`, default to current UTC timestamp, not null.\n- `updated_at`: `timestamptz`, default to current UTC timestamp, not null.\n\nAn index `idx_messages_thread` should be added on `thread_id`.\n\nExample Drizzle schema:\n```typescript\nimport { pgTable, uuid, text, timestamp, index } from 'drizzle-orm/pg-core';\nimport { threads } from './threads';\nimport { messageRoleEnum } from './enums';\n\nexport const messages = pgTable('messages', {\n  id: uuid('id').defaultRandom().primaryKey(),\n  threadId: uuid('thread_id').references(() => threads.id, { onDelete: 'cascade' }).notNull(),\n  role: messageRoleEnum('role').notNull(),\n  content: text('content').notNull(),\n  status: text('status').default('pending').notNull(), // Initial status for a message\n  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),\n  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),\n}, (table) => ({\n  threadIdx: index('idx_messages_thread').on(table.threadId),\n}));\n```",
+        "testStrategy": "Generate and run the Drizzle migration. Verify `messages` table creation, column types, primary key, `thread_id` foreign key constraint with cascade delete, and correct usage of `message_role` enum. Confirm `idx_messages_thread` index exists. Insert test messages into a thread to ensure data persistence.",
+        "priority": "high",
+        "dependencies": [
+          1,
+          2
+        ],
+        "status": "done",
+        "subtasks": []
+      },
+      {
+        "id": 4,
+        "title": "Create 'uploads' Table Schema",
+        "description": "Implement the Drizzle ORM schema and migration for the 'uploads' table to store metadata for user-uploaded files.",
+        "details": "Define the `uploads` table using Drizzle ORM. The table should include:\n- `id`: UUID, primary key, auto-generated.\n- `user_id`: UUID, foreign key referencing `users.id`, not null.\n- `purpose`: `file_purpose` enum type, not null (e.g., 'init', 'mask', 'reference', 'attachment').\n- `url`: Text, not null (URL to the actual file stored in external storage like S3/GCS).\n- `metadata`: JSONB, nullable (to store additional file details like filename, size, mimeType).\n- `created_at`: `timestamptz`, default to current UTC timestamp, not null.\n\nExample Drizzle schema:\n```typescript\nimport { pgTable, uuid, text, jsonb, timestamp } from 'drizzle-orm/pg-core';\n// import { users } from './users'; \nimport { filePurposeEnum } from './enums';\n\nexport const uploads = pgTable('uploads', {\n  id: uuid('id').defaultRandom().primaryKey(),\n  userId: uuid('user_id').references(() => users.id).notNull(), // Assuming users.id is defined\n  purpose: filePurposeEnum('purpose').notNull(),\n  url: text('url').notNull(),\n  metadata: jsonb('metadata'),\n  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),\n});\n```",
+        "testStrategy": "Generate and run the Drizzle migration. Verify `uploads` table creation, column types, primary key, foreign key constraint to `users`, and JSONB type for metadata. Test inserting upload records with different purposes and metadata.",
+        "priority": "medium",
+        "dependencies": [
+          1
+        ],
+        "status": "done",
+        "subtasks": []
+      },
+      {
+        "id": 5,
+        "title": "Create 'providers' and 'jobs' Table Schemas",
+        "description": "Implement Drizzle ORM schemas and migrations for the `providers` table (to manage image generation services) and the `jobs` table (to track image generation processes).",
+        "details": "Define the `providers` and `jobs` tables using Drizzle ORM.\n\n**`providers` table:**\n- `id`: UUID, primary key, auto-generated.\n- `name`: Text, not null, unique.\n- `config`: JSONB, nullable (e.g., API keys, endpoint URLs for the provider).\n- `created_at`: `timestamptz`, default to current UTC timestamp, not null.\n- `updated_at`: `timestamptz`, default to current UTC timestamp, not null.\n\n**`jobs` table:**\n- `id`: UUID, primary key, auto-generated.\n- `message_id`: UUID, foreign key referencing `messages.id`, not null, unique (1:1 optional relationship with a message triggering the job), with `onDelete('cascade')`.\n- `provider_id`: UUID, foreign key referencing `providers.id`, not null.\n- `job_type`: `job_type` enum type, not null.\n- `status`: `run_status` enum type, not null.\n- `external_id`: Text, nullable (ID from the external generation provider).\n- `parameters`: JSONB, nullable (parameters used for generation, e.g., prompt, style).\n- `created_at`: `timestamptz`, default to current UTC timestamp, not null.\n- `updated_at`: `timestamptz`, default to current UTC timestamp, not null.\n\nAn index `idx_jobs_status` should be added on `status`.\n\nExample Drizzle schema:\n```typescript\nimport { pgTable, uuid, text, jsonb, timestamp, index } from 'drizzle-orm/pg-core';\nimport { messages } from './messages';\nimport { jobTypeEnum, runStatusEnum } from './enums';\n\nexport const providers = pgTable('providers', {\n  id: uuid('id').defaultRandom().primaryKey(),\n  name: text('name').notNull().unique(),\n  config: jsonb('config'),\n  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),\n  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),\n});\n\nexport const jobs = pgTable('jobs', {\n  id: uuid('id').defaultRandom().primaryKey(),\n  messageId: uuid('message_id').references(() => messages.id, { onDelete: 'cascade' }).unique().notNull(),\n  providerId: uuid('provider_id').references(() => providers.id).notNull(),\n  jobType: jobTypeEnum('job_type').notNull(),\n  status: runStatusEnum('status').notNull(),\n  externalId: text('external_id'),\n  parameters: jsonb('parameters'),\n  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),\n  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),\n}, (table) => ({\n  statusIdx: index('idx_jobs_status').on(table.status),\n}));\n```",
+        "testStrategy": "Generate and run the Drizzle migration. Verify both tables are created correctly with specified column types, primary keys, and foreign key constraints. Ensure `jobs.message_id` has a unique constraint. Test inserting sample providers and jobs, verifying enum usage and data integrity. Confirm `idx_jobs_status` index exists.",
+        "priority": "high",
+        "dependencies": [
+          1,
+          3
+        ],
+        "status": "done",
+        "subtasks": []
+      },
+      {
+        "id": 6,
+        "title": "Create 'images' Table Schema",
+        "description": "Implement the Drizzle ORM schema and migration for the 'images' table to store generated image results, linking them to specific generation jobs.",
+        "details": "Define the `images` table using Drizzle ORM. The table should include:\n- `id`: UUID, primary key, auto-generated.\n- `job_id`: UUID, foreign key referencing `jobs.id`, not null, with `onDelete('cascade')`.\n- `url`: Text, not null (URL to the actual generated image stored in external storage).\n- `metadata`: JSONB, nullable (e.g., width, height, format, seed used).\n- `created_at`: `timestamptz`, default to current UTC timestamp, not null.\n\nAn index `idx_images_job` should be added on `job_id`.\n\nExample Drizzle schema:\n```typescript\nimport { pgTable, uuid, text, jsonb, timestamp, index } from 'drizzle-orm/pg-core';\nimport { jobs } from './jobs';\n\nexport const images = pgTable('images', {\n  id: uuid('id').defaultRandom().primaryKey(),\n  jobId: uuid('job_id').references(() => jobs.id, { onDelete: 'cascade' }).notNull(),\n  url: text('url').notNull(),\n  metadata: jsonb('metadata'),\n  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),\n}, (table) => ({\n  jobIdx: index('idx_images_job').on(table.jobId),\n}));\n```",
+        "testStrategy": "Generate and run the Drizzle migration. Verify `images` table creation, column types, primary key, and foreign key constraint to `jobs` with cascade delete. Confirm `idx_images_job` index exists. Insert sample image data linked to a job.",
+        "priority": "medium",
+        "dependencies": [
+          5
+        ],
+        "status": "done",
+        "subtasks": []
+      },
+      {
+        "id": 7,
+        "title": "Create Junction Tables Schemas",
+        "description": "Implement Drizzle ORM schemas and migrations for the many-to-many relationship tables: `job_inputs_uploads` (linking jobs to input uploads) and `message_attachments` (linking messages to attachments).",
+        "details": "Define the `job_inputs_uploads` and `message_attachments` junction tables using Drizzle ORM.\n\n**`job_inputs_uploads` table (N:M between jobs and uploads):**\n- `job_id`: UUID, foreign key referencing `jobs.id`, not null, with `onDelete('cascade')`.\n- `upload_id`: UUID, foreign key referencing `uploads.id`, not null, with `onDelete('cascade')`.\n- Composite primary key on `(job_id, upload_id)`.\n\n**`message_attachments` table (N:M between messages and uploads):**\n- `message_id`: UUID, foreign key referencing `messages.id`, not null, with `onDelete('cascade')`.\n- `upload_id`: UUID, foreign key referencing `uploads.id`, not null, with `onDelete('cascade')`.\n- Composite primary key on `(message_id, upload_id)`.\n\nExample Drizzle schema:\n```typescript\nimport { pgTable, uuid, primaryKey } from 'drizzle-orm/pg-core';\nimport { jobs } from './jobs';\nimport { uploads } from './uploads';\nimport { messages } from './messages';\n\nexport const jobInputsUploads = pgTable('job_inputs_uploads', {\n  jobId: uuid('job_id').references(() => jobs.id, { onDelete: 'cascade' }).notNull(),\n  uploadId: uuid('upload_id').references(() => uploads.id, { onDelete: 'cascade' }).notNull(),\n}, (table) => ({\n  pk: primaryKey({ columns: [table.jobId, table.uploadId] }),\n}));\n\nexport const messageAttachments = pgTable('message_attachments', {\n  messageId: uuid('message_id').references(() => messages.id, { onDelete: 'cascade' }).notNull(),\n  uploadId: uuid('upload_id').references(() => uploads.id, { onDelete: 'cascade' }).notNull(),\n}, (table) => ({\n  pk: primaryKey({ columns: [table.messageId, table.uploadId] }),\n}));\n```",
+        "testStrategy": "Generate and run the Drizzle migration. Verify both junction tables are created correctly, with their respective foreign key constraints and composite primary keys. Test inserting records into both tables to validate the relationships.",
+        "priority": "medium",
+        "dependencies": [
+          3,
+          4,
+          5
+        ],
+        "status": "done",
+        "subtasks": []
+      },
+      {
+        "id": 8,
+        "title": "Implement Database Trigger for 'threads.updated_at'",
+        "description": "Create a PostgreSQL database trigger to automatically update the `updated_at` timestamp of a `thread` whenever a new message is inserted into that thread.",
+        "details": "Create a PostgreSQL function and a trigger. The function `update_thread_updated_at` will update `threads.updated_at` to `NOW()` for the thread associated with the new message. The trigger `set_thread_updated_at` will execute this function `AFTER INSERT` on the `messages` table.\n\nThis can be done using raw SQL within a Drizzle migration script:\n```sql\nCREATE OR REPLACE FUNCTION update_thread_updated_at()\nRETURNS TRIGGER AS $$\nBEGIN\n    UPDATE threads\n    SET updated_at = NOW()\n    WHERE id = NEW.thread_id;\n    RETURN NEW;\nEND;\n$$ LANGUAGE plpgsql;\n\nCREATE TRIGGER set_thread_updated_at\nAFTER INSERT ON messages\nFOR EACH ROW\nEXECUTE FUNCTION update_thread_updated_at();\n```",
+        "testStrategy": "Insert a new message into an existing thread. Query the `threads` table and verify that the `updated_at` timestamp for that specific thread has been updated to a recent value, different from its `created_at` or previous `updated_at`.",
+        "priority": "high",
+        "dependencies": [
+          2,
+          3
+        ],
+        "status": "done",
+        "subtasks": []
+      },
+      {
+        "id": 9,
+        "title": "Implement Basic CRUD Operations with Drizzle ORM",
+        "description": "Develop and test basic Create, Read, Update, and Delete (CRUD) operations for the core entities using Drizzle ORM, ensuring data interaction capabilities.",
+        "details": "Implement Drizzle ORM service functions for:\n- **Creating**: New `threads`, `messages`, `uploads`, `providers`, `jobs`, `images`.\n- **Reading**: Retrieving single entities by `id`. Retrieving lists of entities (e.g., all messages for a `thread_id`, all jobs for a `user_id`, images for a `job_id`).\n- **Updating**: Changing `status` of messages/jobs, `content` of messages, `config` of providers.\n- **Deleting**: Removing `threads` (which should cascade to `messages`, `jobs`, `images`), individual `messages`, `uploads`.\n\nFocus on using Drizzle's typed API for insertions, selections, updates, and deletions. Ensure correct handling of foreign keys and enum types during these operations.",
+        "testStrategy": "Develop unit and integration tests for each CRUD operation. For each entity type, perform create, read (by ID and list), update, and delete actions. Assert data correctness, foreign key integrity, and proper cascade deletions where applicable. Verify enum values are correctly stored and retrieved.",
+        "priority": "medium",
+        "dependencies": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 10,
+        "title": "Verify and Optimize Database Indexing",
+        "description": "Ensure all recommended indexes are correctly applied and analyze common query performance, adding additional composite indexes if necessary.",
+        "details": "Verify that all explicitly recommended indexes are present in the database schema:\n- `idx_threads_owner` on `threads(owner_id)`\n- `idx_messages_thread` on `messages(thread_id)`\n- `idx_jobs_status` on `jobs(status)`\n- `idx_images_job` on `images(job_id)`\n\nUse PostgreSQL's `EXPLAIN ANALYZE` command to profile performance for critical queries, such as:\n- Fetching all messages for a specific thread, ordered by `created_at`.\n- Retrieving jobs by `status`.\n- Joining `threads`, `messages`, `jobs`, and `images` to display a full conversation with image generation results.\n\nConsider creating additional composite indexes if `EXPLAIN ANALYZE` reveals slow query plans, for example, `messages(thread_id, created_at DESC)` for common chat history retrieval.",
+        "testStrategy": "Run `EXPLAIN ANALYZE` on a suite of representative queries covering chat history retrieval, job status lookup, and full thread views. Analyze the query plans to confirm effective index usage and identify any bottlenecks. Compare query execution times before and after adding any new composite indexes. Ensure the added indexes do not negatively impact write performance for high-volume operations.",
+        "priority": "medium",
+        "dependencies": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "status": "pending",
+        "subtasks": []
+      }
+    ],
+    "metadata": {
+      "created": "2025-10-12T03:36:54.257Z",
+      "updated": "2025-10-12T05:03:14.213Z",
+      "description": "Tasks for be-design-database context"
+    }
+  },
+  "be-upload-feature": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "Set Up Cloudflare R2 Bucket and Environment Variables",
+        "description": "Provision the Cloudflare R2 bucket and configure all required environment variables for access and public URL.",
+        "details": "- Create the R2 bucket named 'imggen-uploads'.\n- Generate Access Key ID and Secret Access Key for the project.\n- Note the Account ID and public base URL (or CDN URL if fronted).\n- Configure the bucket for public GET access.\n- Add all required environment variables to the server's environment (R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET, R2_PUBLIC_BASE_URL, APP_BASE_URL, APP_ENV, UPLOAD_MAX_SIZE_MB, AUTH_BEARER_TOKENS).",
+        "testStrategy": "- Verify that the bucket exists and is publicly readable.\n- Confirm that environment variables are loaded and accessible in the application context.",
+        "priority": "high",
+        "dependencies": [],
+        "status": "done",
+        "subtasks": []
+      },
+      {
+        "id": 2,
+        "title": "Install and Configure Required Node.js Packages",
+        "description": "Install all necessary Node.js dependencies for the upload feature, including Express, Multer, AWS SDK v3, ulid, and mime-types.",
+        "details": "- Run `npm i express multer @aws-sdk/client-s3 @aws-sdk/lib-storage ulid mime-types`.\n- Ensure package.json is updated and dependencies are correctly installed.",
+        "testStrategy": "- Run `npm ls` and ensure all packages are present.\n- Import each package in a test file to confirm successful installation.",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "done",
+        "subtasks": []
+      },
+      {
+        "id": 3,
+        "title": "Implement Minimal Bearer Token Authentication Middleware",
+        "description": "Use the project's existing JWT authentication middleware to validate Bearer tokens and attach the authenticated user to requests. Do not implement a new or hardcoded bearer token system. Apply this to protect the upload endpoint so only authenticated users can upload files.",
+        "status": "done",
+        "dependencies": [
+          2
+        ],
+        "priority": "high",
+        "details": "- Import and use the existing JWT validation middleware `verifyToken` from `src/middlewares/tokenHandler.js`.\n- `verifyToken` reads the Authorization header, validates the JWT using `TOKEN_SECRET_KEY`, fetches the user from the database, and attaches it to `req.user`.\n- Remove any plan or code for hardcoded bearer token lists (no `AUTH_BEARER_TOKENS` parsing).\n- Apply `verifyToken` as middleware to the upload route so only authenticated users can upload.\n- Use `req.user.id` to associate uploads with the authenticated user in the database.\n- 401 responses for missing/invalid/expired tokens are handled by `verifyToken` (no additional 401 handling needed).",
+        "testStrategy": "- Send upload requests with a valid JWT obtained from login; request should succeed and `req.user` should contain correct user info (id, username, email, role, etc.).\n- Send upload requests without an Authorization header; should return 401 Unauthenticated.\n- Send upload requests with an invalid or expired JWT; should return 401 Unauthenticated.\n- Verify the upload logic associates records with `req.user.id` and that `req.user` is present on authenticated requests.",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Replace custom bearer token logic with existing `verifyToken` middleware",
+            "description": "Remove any custom/minimal bearer token middleware or references to `AUTH_BEARER_TOKENS`. Ensure authentication uses `src/middlewares/tokenHandler.js#verifyToken`.",
+            "dependencies": [],
+            "details": "Search the codebase for any custom auth middleware and delete or deprecate it. Centralize all protected routes to use `verifyToken`.",
+            "status": "done",
+            "testStrategy": "Unit test `verifyToken` usage by mocking requests with valid/invalid tokens and asserting `req.user` population and 401 responses."
+          },
+          {
+            "id": 2,
+            "title": "Apply `verifyToken` to the /v1/uploads route",
+            "description": "Protect the upload endpoint by adding `verifyToken` as middleware so only authenticated users can upload files.",
+            "dependencies": [],
+            "details": "Update the uploads router to include `verifyToken` before the handler. Ensure the handler reads `req.user.id` to associate uploads.",
+            "status": "done",
+            "testStrategy": "Integration test POST /v1/uploads with valid token (success) and without/invalid token (401). Verify `req.user` is present in the handler."
+          },
+          {
+            "id": 3,
+            "title": "Validate `req.user` data usage in upload handling",
+            "description": "Ensure the upload persistence logic uses `req.user.id` (and other fields if needed) to attribute uploads to the authenticated user.",
+            "dependencies": [],
+            "details": "Audit the DB insert logic for uploads to confirm it references `req.user.id`. Add fallbacks or error handling if `req.user` is missing.",
+            "status": "done",
+            "testStrategy": "Inspect created DB rows to confirm they include the correct user identifier. Add tests that assert attribution."
+          },
+          {
+            "id": 4,
+            "title": "Confirm environment configuration for JWT",
+            "description": "Ensure `TOKEN_SECRET_KEY` is set in the environment and documented for local/dev/test environments.",
+            "dependencies": [],
+            "details": "Update env samples (.env.example) and deployment configuration to include `TOKEN_SECRET_KEY`.",
+            "status": "done",
+            "testStrategy": "Run authentication flow locally with the configured secret and verify tokens are accepted/rejected as expected."
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Configure Multer for In-Memory File Uploads with Validation",
+        "description": "Set up Multer middleware to accept multipart/form-data uploads, enforce max file size, and restrict to allowed image MIME types.",
+        "details": "- Use multer.memoryStorage().\n- Set fileSize limit from UPLOAD_MAX_SIZE_MB.\n- Accept only 'image/png', 'image/jpeg', 'image/webp', 'image/gif'.\n- Return 400 for missing file, 415 for unsupported MIME, 400 for size exceeded.",
+        "testStrategy": "- Upload files of various types and sizes, verify correct error codes and acceptance.",
+        "priority": "high",
+        "dependencies": [
+          3
+        ],
+        "status": "done",
+        "subtasks": []
+      },
+      {
+        "id": 5,
+        "title": "Implement S3 Client for Cloudflare R2 Integration",
+        "description": "Configure AWS SDK v3 S3Client to connect to Cloudflare R2 using environment credentials and endpoint.",
+        "details": "- Instantiate S3Client with endpoint `https://{R2_ACCOUNT_ID}.r2.cloudflarestorage.com`.\n- Use credentials from environment variables.\n- Test connection by listing buckets or uploading a test object.",
+        "testStrategy": "- Attempt to upload a test file to the bucket and verify its presence via the R2 dashboard or public URL.",
+        "priority": "high",
+        "dependencies": [
+          4
+        ],
+        "status": "done",
+        "subtasks": []
+      },
+      {
+        "id": 6,
+        "title": "Design and Implement Storage Key Generation Utility",
+        "description": "Create a function to generate storage keys for uploads using the specified pattern and filename slugification.",
+        "details": "- Use ULID (or nanoid) for uniqueness.\n- Format: `u/{user_id}/{yyyy}/{mm}/{dd}/{ulid}_{slugifiedOriginalName}`.\n- Slugify original filename (lowercase, alphanumeric and dashes, max 60 chars).\n- Use current UTC date for path components.\n\n## Implementation Complete ✅\n\n**Files Created:**\n\n1. **`server/src/utils/storageKey.js`** - Storage key generation utility\n   - `generateStorageKey(userId, originalFilename, date)` - Main function to generate storage keys\n   - `slugifyFilename(filename, maxLength)` - Helper to slugify filenames (lowercase, alphanumeric, dashes, max 60 chars)\n   - `extractSlugFromKey(storageKey)` - Utility to extract filename slug from a key\n   - Uses ULID for uniqueness guarantees\n   - Follows pattern: `u/{user_id}/{yyyy}/{mm}/{dd}/{ulid}_{slugifiedOriginalName}`\n   - Uses UTC date for path components\n   - Adheres to project rules: lodash utilities (trim, toLower, replace, truncate), ES6+, no optional chaining\n\n2. **`server/tests/utils/storageKey.spec.js`** - Comprehensive unit tests (32 tests, all passing)\n   - Tests slugification with various edge cases (special chars, Vietnamese, long names, empty names)\n   - Tests storage key format validation\n   - Tests collision resistance (100 unique keys for same inputs)\n   - Tests date formatting and UTC handling\n   - Tests error handling for missing inputs\n   - Tests real-world filename scenarios\n\n**Key Features:**\n- ULID-based uniqueness (collision-resistant)\n- Proper filename slugification (removes extensions, special chars, limits length to 60)\n- UTC date-based organization (YYYY/MM/DD)\n- Handles edge cases: empty filenames, only special chars, very long names, multiple extensions\n- Full test coverage with 32 passing tests\n\n**Next Steps:**\nReady for use in task 7 (implement /v1/uploads API route handler).",
+        "testStrategy": "- Unit test with various filenames and user IDs to ensure correct, collision-resistant keys.",
+        "priority": "medium",
+        "dependencies": [
+          5
+        ],
+        "status": "done",
+        "subtasks": []
+      },
+      {
+        "id": 7,
+        "title": "Implement /uploads API Route Handler",
+        "description": "Create the Express route to handle POST /uploads, authenticate, validate, upload to R2, and respond with JSON.",
+        "details": "- Use the auth and multer middleware.\n- Validate file and metadata fields.\n- Generate storage key and upload to R2 using S3Client.\n- Construct public URL from R2_PUBLIC_BASE_URL and storage key.\n- Prepare upload row object for DB insertion.\n- Return JSON response as specified.",
+        "testStrategy": "- Unit test with this route, verify correct JSON response and error handling.",
+        "priority": "high",
+        "dependencies": [
+          6
+        ],
+        "status": "done",
+        "subtasks": []
+      },
+      {
+        "id": 8,
+        "title": "Integrate Database Insert for Uploads Table",
+        "description": "Insert a new row into the uploads table with all required metadata after successful R2 upload.",
+        "details": "- Use the existing DB layer (e.g., Drizzle).\n- Insert all required fields: id, user_id, thread_id, title, purpose, mime_type, size_bytes, storage_provider, storage_bucket, storage_key, public_url, checksum_sha256, created_at.\n- Use gen_random_uuid() or equivalent for id.\n- Return the inserted row for the API response.",
+        "testStrategy": "- Verify that a new row is created in the uploads table for each successful upload.\n- Check that all fields are correctly populated.",
+        "priority": "high",
+        "dependencies": [
+          7
+        ],
+        "status": "done",
+        "subtasks": []
+      },
+      {
+        "id": 9,
+        "title": "Implement Error Handling and Response Codes",
+        "description": "Ensure all error cases return the correct HTTP status and error JSON as per the spec.",
+        "details": "- 400 for missing file or size exceeded.\n- 415 for unsupported MIME type.\n- 401 for missing/invalid token.\n- 500 for internal errors (R2 or DB failures).\n- Log errors for debugging.",
+        "testStrategy": "- Simulate each error case and verify the correct status code and error message in the response.",
+        "priority": "medium",
+        "dependencies": [
+          8
+        ],
+        "status": "done",
+        "subtasks": []
+      },
+      {
+        "id": 10,
+        "title": "Deploy and Validate the Upload Endpoint",
+        "description": "Deploy the server and verify the endpoint is reachable, uploads work, and files are accessible at the public URL.",
+        "details": "- Deploy the server to the target environment.\n- Test the endpoint with real image uploads.\n- Confirm files are stored in R2 and accessible via public_url.\n- Ensure the uploads table is updated and the API response matches the spec.",
+        "testStrategy": "- Use cURL and browser to upload images and access the resulting public URLs.\n- Check database for correct row insertion.\n- Run through the test checklist from the PRD.",
+        "priority": "high",
+        "dependencies": [
+          9
+        ],
+        "status": "done",
+        "subtasks": []
+      }
+    ],
+    "metadata": {
+      "created": "2025-10-12T06:59:15.308Z",
+      "updated": "2025-10-12T15:30:36.150Z",
+      "description": "Tasks for be-upload-feature context"
+    }
+  }
+}
