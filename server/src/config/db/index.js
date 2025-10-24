@@ -5,7 +5,9 @@ import { config } from "../env.js";
 async function connect() {
   try {
     await testConnection();
-    logger.info(`Connected to PostgreSQL: ${config.database.url.split("@")[1]}`);
+    logger.info(
+      `✅ Connected to PostgreSQL: ${config.database.url.split("@")[1]}`
+    );
   } catch (error) {
     logger.error("Failed to connect to PostgreSQL:", error);
     throw error;
@@ -13,4 +15,3 @@ async function connect() {
 }
 
 export default { connect };
-

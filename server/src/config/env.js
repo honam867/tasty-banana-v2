@@ -12,6 +12,8 @@ const requiredEnvVars = [
   "R2_ACCESS_KEY_ID",
   "R2_SECRET_ACCESS_KEY",
   "R2_BUCKET",
+  "REDIS_HOST",
+  "REDIS_PORT",
 ];
 
 const validateEnv = () => {
@@ -42,6 +44,12 @@ const config = {
     secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
     bucket: process.env.R2_BUCKET,
     publicDomain: process.env.R2_PUBLIC_DOMAIN,
+  },
+  redis: {
+    host: process.env.REDIS_HOST || "localhost",
+    port: parseInt(process.env.REDIS_PORT) || 6379,
+    password: process.env.REDIS_PASSWORD,
+    db: parseInt(process.env.REDIS_DB) || 0,
   },
   logLevel: process.env.LOG_LEVEL || "info",
 };

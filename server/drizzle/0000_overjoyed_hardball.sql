@@ -1,7 +1,6 @@
 CREATE TABLE "uploads" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"user_id" uuid NOT NULL,
-	"thread_id" uuid,
 	"title" varchar(255),
 	"purpose" varchar(50) DEFAULT 'attachment' NOT NULL,
 	"mime_type" varchar(100) NOT NULL,
@@ -27,5 +26,4 @@ CREATE TABLE "users" (
 );
 --> statement-breakpoint
 ALTER TABLE "uploads" ADD CONSTRAINT "uploads_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-CREATE INDEX "idx_uploads_user" ON "uploads" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "idx_uploads_thread" ON "uploads" USING btree ("thread_id");
+CREATE INDEX "idx_uploads_user" ON "uploads" USING btree ("user_id");

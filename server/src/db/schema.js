@@ -45,9 +45,6 @@ export const uploads = pgTable(
       .references(() => users.id)
       .notNull(),
 
-    // Optional thread association
-    threadId: uuid("thread_id"),
-
     // Optional title/label for the file
     title: varchar("title", { length: 255 }),
 
@@ -72,9 +69,6 @@ export const uploads = pgTable(
       .defaultNow(),
   },
   (table) => ({
-    // Index on user_id for efficient lookups by user
     userIdx: index("idx_uploads_user").on(table.userId),
-    // Index on thread_id for efficient lookups by thread
-    threadIdx: index("idx_uploads_thread").on(table.threadId),
   })
 );

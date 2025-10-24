@@ -1,82 +1,17 @@
 import workerService from "../WorkerService.js";
-import { QUEUE_NAMES, JOB_TYPES } from "../jobs/index.js";
-import {
-  generateImageProcessor,
-  generateThumbnailProcessor,
-  addWatermarkProcessor,
-  resizeImageProcessor,
-} from "../processors/imageGeneration.processor.js";
 import logger from "../../../config/logger.js";
 
 /**
  * Worker Initialization
  * Central place to register all processors and start workers
  * 
- * This file should be imported and initialized when your server starts
+ * Add your worker registrations here when you're ready to use them.
  * 
- * Usage:
- *   import { initializeWorkers } from './services/queue/workers/index.js';
- *   await initializeWorkers();
+ * Example:
+ *   import { myProcessor } from "../processors/myProcessor.js";
+ *   workerService.registerProcessor(QUEUE_NAME, JOB_TYPE, myProcessor);
+ *   workerService.createWorker(QUEUE_NAME, { concurrency: 3 });
  */
-
-/**
- * Register Image Generation processors
- */
-function registerImageGenerationWorkers() {
-  logger.info("Registering image generation processors...");
-
-  // Register all processors for the image generation queue
-  workerService.registerProcessor(
-    QUEUE_NAMES.IMAGE_GENERATION,
-    JOB_TYPES.IMAGE_GENERATION.GENERATE,
-    generateImageProcessor
-  );
-
-  workerService.registerProcessor(
-    QUEUE_NAMES.IMAGE_GENERATION,
-    JOB_TYPES.IMAGE_GENERATION.THUMBNAIL,
-    generateThumbnailProcessor
-  );
-
-  workerService.registerProcessor(
-    QUEUE_NAMES.IMAGE_GENERATION,
-    JOB_TYPES.IMAGE_GENERATION.WATERMARK,
-    addWatermarkProcessor
-  );
-
-  workerService.registerProcessor(
-    QUEUE_NAMES.IMAGE_GENERATION,
-    JOB_TYPES.IMAGE_GENERATION.RESIZE,
-    resizeImageProcessor
-  );
-
-  // Create and start the worker
-  workerService.createWorker(QUEUE_NAMES.IMAGE_GENERATION, {
-    concurrency: 3, // Process 3 image jobs concurrently
-    limiter: {
-      max: 5,
-      duration: 1000,
-    },
-  });
-
-  logger.info("Image generation workers registered and started");
-}
-
-/**
- * Register Email processors (example placeholder)
- */
-function registerEmailWorkers() {
-  // Placeholder - implement your email processors
-  logger.info("Email workers not yet implemented");
-}
-
-/**
- * Register File Processing processors (example placeholder)
- */
-function registerFileProcessingWorkers() {
-  // Placeholder - implement your file processing processors
-  logger.info("File processing workers not yet implemented");
-}
 
 /**
  * Initialize all workers
@@ -86,12 +21,11 @@ export async function initializeWorkers() {
   try {
     logger.info("=== Initializing Queue Workers ===");
 
-    // Register workers for each queue
-    registerImageGenerationWorkers();
-    // registerEmailWorkers(); // Uncomment when implemented
-    // registerFileProcessingWorkers(); // Uncomment when implemented
+    // TODO: Register your workers here when needed
+    // Example:
+    // registerYourWorkers();
 
-    logger.info("=== All Queue Workers Initialized Successfully ===");
+    logger.info("=== Queue Workers Ready (No workers registered yet) ===");
   } catch (error) {
     logger.error("Failed to initialize workers:", error);
     throw error;
