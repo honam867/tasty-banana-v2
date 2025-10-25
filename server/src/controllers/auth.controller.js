@@ -85,7 +85,8 @@ export const register = async (req, res) => {
 
     // Grant signup bonus tokens (1,000 tokens)
     try {
-      await TokenService.credit(newUser.id, 1000, {
+      console.log(`🎁 Attempting to grant signup bonus to user ${newUser.id}...`);
+      const result = await TokenService.credit(newUser.id, 1000, {
         reasonCode: "signup_bonus",
         idempotencyKey: `signup:${newUser.id}`,
         actor: { type: "system" },
@@ -94,10 +95,11 @@ export const register = async (req, res) => {
           signupDate: new Date().toISOString(),
         },
       });
-      console.log(`✅ Granted 1,000 signup bonus tokens to user ${newUser.id}`);
+      console.log(`✅ Granted 1,000 signup bonus tokens to user ${newUser.id}`, result);
     } catch (tokenError) {
       // Log error but don't fail registration
-      console.error("Failed to grant signup bonus:", tokenError);
+      console.error("❌ Failed to grant signup bonus:", tokenError);
+      console.error("Error stack:", tokenError.stack);
       // Continue with registration - user can get tokens later
     }
 

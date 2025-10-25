@@ -7,6 +7,7 @@ import {
   integer,
   boolean,
   index,
+  jsonb,
 } from "drizzle-orm/pg-core";
 
 /**
@@ -126,7 +127,7 @@ export const tokenTransactions = pgTable(
     referenceId: uuid("reference_id"),
     // Links to related record (generation, edit, etc.)
 
-    notes: text("notes"), // Admin notes for manual top-ups
+    notes: jsonb("notes"), // JSON metadata including idempotency keys
     adminId: uuid("admin_id").references(() => users.id), // Who added tokens
 
     createdAt: timestamp("created_at").notNull().defaultNow(),

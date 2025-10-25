@@ -1,0 +1,1 @@
+ALTER TABLE "token_transactions" ALTER COLUMN "notes" SET DATA TYPE jsonb;
