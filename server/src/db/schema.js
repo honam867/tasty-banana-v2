@@ -5,6 +5,7 @@ import {
   text,
   timestamp,
   integer,
+  boolean,
   index,
 } from "drizzle-orm/pg-core";
 
@@ -72,3 +73,221 @@ export const uploads = pgTable(
     userIdx: index("idx_uploads_user").on(table.userId),
   })
 );
+
+/**
+ * User Tokens Table Schema
+ * Tracks user token balance for AI operations
+ */
+export const userTokens = pgTable(
+  "user_tokens",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+
+    userId: uuid("user_id")
+      .references(() => users.id)
+      .notNull()
+      .unique(),
+
+    balance: integer("balance").notNull().default(0),
+    totalEarned: integer("total_earned").notNull().default(0),
+    totalSpent: integer("total_spent").notNull().default(0),
+
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => ({
+    userIdx: index("idx_user_tokens_user").on(table.userId),
+  })
+);
+
+/**
+ * Token Transactions Table Schema
+ * Records all token credits/debits with metadata
+ */
+export const tokenTransactions = pgTable(
+  "token_transactions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+
+    userId: uuid("user_id")
+      .references(() => users.id)
+      .notNull(),
+
+    type: varchar("type", { length: 50 }).notNull(), // 'credit', 'debit'
+    amount: integer("amount").notNull(),
+    balanceAfter: integer("balance_after").notNull(),
+
+    reason: varchar("reason", { length: 100 }).notNull(),
+    // 'signup_bonus', 'admin_topup', 'image_generation', 'image_edit', etc.
+
+    referenceType: varchar("reference_type", { length: 50 }),
+    // 'image_generation', 'image_edit', 'admin_action'
+
+    referenceId: uuid("reference_id"),
+    // Links to related record (generation, edit, etc.)
+
+    notes: text("notes"), // Admin notes for manual top-ups
+    adminId: uuid("admin_id").references(() => users.id), // Who added tokens
+
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => ({
+    userIdx: index("idx_token_transactions_user").on(table.userId),
+    referenceIdx: index("idx_token_transactions_reference").on(
+      table.referenceType,
+      table.referenceId
+    ),
+    createdAtIdx: index("idx_token_transactions_created").on(table.createdAt),
+  })
+);
+
+/**
+ * Image Projects Table Schema
+ * User's image editing projects/sessions
+ */
+export const imageProjects = pgTable(
+  "image_projects",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+
+    userId: uuid("user_id")
+      .references(() => users.id)
+      .notNull(),
+
+    name: varchar("name", { length: 255 }).notNull(),
+    description: text("description"),
+
+    status: varchar("status", { length: 50 }).notNull().default("active"),
+    // 'active', 'archived', 'deleted'
+
+    metadata: text("metadata"), // JSON string for additional data
+
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => ({
+    userIdx: index("idx_image_projects_user").on(table.userId),
+    statusIdx: index("idx_image_projects_status").on(table.status),
+  })
+);
+
+/**
+ * Image Generations Table Schema
+ * Tracks all AI image generation/editing operations
+ */
+export const imageGenerations = pgTable(
+  "image_generations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+
+    userId: uuid("user_id")
+      .references(() => users.id)
+      .notNull(),
+
+    projectId: uuid("project_id").references(() => imageProjects.id),
+
+    operationType: varchar("operation_type", { length: 50 }).notNull(),
+    // 'text_to_image', 'image_edit_simple', 'image_edit_complex',
+    // 'multi_image_composition', 'style_transfer', 'conversational_edit',
+    // 'text_rendering', 'custom_prompt', 'video_generation' (future)
+
+    // Input data
+    inputImageId: uuid("input_image_id").references(() => uploads.id),
+    prompt: text("prompt").notNull(),
+    negativePrompt: text("negative_prompt"),
+
+    // AI parameters
+    model: varchar("model", { length: 100 })
+      .notNull()
+      .default("gemini-2.5-flash-image"),
+    temperature: varchar("temperature", { length: 10 }),
+    seed: varchar("seed", { length: 50 }),
+
+    // Output data
+    outputImageId: uuid("output_image_id").references(() => uploads.id),
+    status: varchar("status", { length: 50 }).notNull().default("pending"),
+    // 'pending', 'processing', 'completed', 'failed', 'cancelled'
+
+    // Token usage
+    tokensUsed: integer("tokens_used").notNull().default(0),
+
+    // Error tracking
+    errorMessage: text("error_message"),
+
+    // Timing
+    processingTimeMs: integer("processing_time_ms"),
+
+    // AI response metadata
+    aiMetadata: text("ai_metadata"), // JSON string
+
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    completedAt: timestamp("completed_at"),
+  },
+  (table) => ({
+    userIdx: index("idx_image_generations_user").on(table.userId),
+    projectIdx: index("idx_image_generations_project").on(table.projectId),
+    statusIdx: index("idx_image_generations_status").on(table.status),
+    operationIdx: index("idx_image_generations_operation").on(
+      table.operationType
+    ),
+    createdAtIdx: index("idx_image_generations_created").on(table.createdAt),
+  })
+);
+
+/**
+ * Image Edit History Table Schema
+ * Detailed history of edits for versioning
+ */
+export const imageEditHistory = pgTable(
+  "image_edit_history",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+
+    projectId: uuid("project_id")
+      .references(() => imageProjects.id)
+      .notNull(),
+
+    generationId: uuid("generation_id")
+      .references(() => imageGenerations.id)
+      .notNull(),
+
+    version: integer("version").notNull(), // 1, 2, 3...
+
+    action: varchar("action", { length: 100 }).notNull(),
+    // 'background_remove', 'flip_horizontal', 'replace_object', etc.
+
+    description: text("description"), // Human-readable description
+
+    beforeImageId: uuid("before_image_id").references(() => uploads.id),
+    afterImageId: uuid("after_image_id")
+      .references(() => uploads.id)
+      .notNull(),
+
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => ({
+    projectIdx: index("idx_image_edit_history_project").on(table.projectId),
+    generationIdx: index("idx_image_edit_history_generation").on(
+      table.generationId
+    ),
+  })
+);
+
+/**
+ * Token Pricing Table Schema
+ * Defines token costs for different operations (admin configurable)
+ */
+export const tokenPricing = pgTable("token_pricing", {
+  id: uuid("id").primaryKey().defaultRandom(),
+
+  operationType: varchar("operation_type", { length: 50 }).notNull().unique(),
+  // 'text_to_image', 'image_edit_simple', 'image_edit_complex', etc.
+
+  tokensPerOperation: integer("tokens_per_operation").notNull(),
+
+  description: text("description"),
+  isActive: boolean("is_active").notNull().default(true),
+
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});

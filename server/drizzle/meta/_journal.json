@@ -8,6 +8,13 @@
       "when": 1761320172002,
       "tag": "0000_overjoyed_hardball",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1761375080616,
+      "tag": "0001_slippery_jack_power",
+      "breakpoints": true
     }
   ]
 }

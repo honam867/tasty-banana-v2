@@ -35,7 +35,6 @@ export const DATE = {
   MONTHS: "months",
 };
 
-
 export const setResetPassEmailContent = (username, newPassword) => {
   return `Your new password for user ${username} in Ecomx system is: \n ${newPassword} \n If you did not request to reset your password, it is safe to disregard this message. You can learn more about why you may have received this email here.\n
   Best regards, \n
