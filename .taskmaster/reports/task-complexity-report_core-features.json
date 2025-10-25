@@ -1,0 +1,21 @@
+{
+	"meta": {
+		"generatedAt": "2025-10-25T09:41:08.844Z",
+		"tasksAnalyzed": 1,
+		"totalTasks": 16,
+		"analysisCount": 1,
+		"thresholdScore": 5,
+		"projectName": "Taskmaster",
+		"usedResearch": false
+	},
+	"complexityAnalysis": [
+		{
+			"taskId": 9,
+			"taskTitle": "Token Management System",
+			"complexityScore": 7,
+			"recommendedSubtasks": 12,
+			"expansionPrompt": "Break Task 9 into 12 concrete subtasks. Cover: 1) data model and DB migrations for token accounts and transactions (ledger-based, with indexes for pagination), 2) TokenService with methods for credit/debit/getBalance/getHistory, 3) transactional consistency and concurrency control (ACID, row-level locking, idempotency keys for signup bonus/top-ups), 4) signup bonus hook on successful registration (1,000 tokens) with audit log and idempotency, 5) GET /api/tokens/balance endpoint (auth, consistent reads), 6) GET /api/tokens/history endpoint (pagination, sorting, filtering), 7) POST /api/admin/tokens/topup endpoint (role-based auth/middleware, input validation, audit logging), 8) validation rules preventing negative balances and rejecting invalid operations, 9) unified error handling and consistent API response schema, 10) observability/audit: structured transaction logs and metrics, 11) security/rate limiting for endpoints, 12) testing: unit tests for TokenService and validation, integration tests for all endpoints and signup trigger, plus edge cases (race conditions, duplicate signup, admin misuse). For each subtask, include a short description and acceptance criteria.",
+			"reasoning": "Moderately high complexity due to designing a robust token ledger, enforcing ACID transactions and concurrency safety, integrating signup event hooks, admin-only top-up with role-based auth, paginated history, and comprehensive validation/audit requirements. It’s foundational, requires careful schema design, idempotency, and thorough unit/integration testing, but the scope remains contained to backend APIs and services."
+		}
+	]
+}

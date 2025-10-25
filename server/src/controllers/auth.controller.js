@@ -2,8 +2,6 @@ import CryptoJS from "crypto-js";
 import jsonwebtoken from "jsonwebtoken";
 import nodemailer from "nodemailer";
 import {
-  getUserForAuth,
-  findUserByUsername,
   createUser,
   updateUserPassword,
   findUserByEmail,
@@ -14,6 +12,7 @@ import {
   setResetPassEmailContent,
 } from "../utils/constant.js";
 import { sendError, sendWarning } from "../utils/response.js";
+import TokenService from "../services/tokens/TokenService.js";
 
 //[POST] login
 export const login = async (req, res) => {
@@ -84,6 +83,24 @@ export const register = async (req, res) => {
       email,
     });
 
+    // Grant signup bonus tokens (1,000 tokens)
+    try {
+      await TokenService.credit(newUser.id, 1000, {
+        reasonCode: "signup_bonus",
+        idempotencyKey: `signup:${newUser.id}`,
+        actor: { type: "system" },
+        metadata: {
+          email: newUser.email,
+          signupDate: new Date().toISOString(),
+        },
+      });
+      console.log(`✅ Granted 1,000 signup bonus tokens to user ${newUser.id}`);
+    } catch (tokenError) {
+      // Log error but don't fail registration
+      console.error("Failed to grant signup bonus:", tokenError);
+      // Continue with registration - user can get tokens later
+    }
+
     const token = jwtSign(newUser.id);
 
     res.status(HTTP_STATUS.SUCCESS).json({
@@ -99,6 +116,7 @@ export const register = async (req, res) => {
           status: newUser.status,
         },
         token,
+        tokensGranted: 1000,
       },
     });
   } catch (error) {

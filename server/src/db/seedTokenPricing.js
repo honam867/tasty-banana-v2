@@ -1,11 +1,15 @@
 import { db } from "./drizzle.js";
-import { tokenPricing } from "./imageEditorSchema.js";
+import { tokenPricing } from "./schema.js";
+
+console.log("📦 seedTokenPricing.js loaded");
 
 /**
  * Seed default token pricing for MVP
  * Run this after initial migration
  */
 async function seedTokenPricing() {
+  console.log("🚀 Starting token pricing seed...");
+  
   const defaultPricing = [
     {
       operationType: "text_to_image",
@@ -98,8 +102,15 @@ async function seedTokenPricing() {
 }
 
 // Run if called directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+const isMainModule = import.meta.url === `file://${process.argv[1]}` || 
+                     import.meta.url === `file:///${process.argv[1].replace(/\\/g, '/')}` ||
+                     import.meta.url.endsWith(process.argv[1].replace(/\\/g, '/'));
+
+if (isMainModule) {
+  console.log("✅ Module detection passed, calling seedTokenPricing()");
   seedTokenPricing();
+} else {
+  console.log("❌ Module detection failed, not calling seedTokenPricing()");
 }
 
 export default seedTokenPricing;

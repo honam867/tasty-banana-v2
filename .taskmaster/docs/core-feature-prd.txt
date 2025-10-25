@@ -1,0 +1,718 @@
+=============================================================================
+    PRODUCT REQUIREMENTS DOCUMENT (PRD)
+    AI Image Editor - Core Features Implementation
+    Version: 1.0
+    Date: 2025-10-25
+=============================================================================
+
+PROJECT OVERVIEW
+=============================================================================
+Build an AI-powered image editing platform using Gemini Flash 2.5 Image API.
+Users get 1,000 free tokens to generate and edit images with natural language.
+Token-based monetization with manual admin top-up (no payment gateway for MVP).
+
+TARGET: Ship MVP in 3 weeks
+FOCUS: Core image editing features only
+
+
+WHAT'S ALREADY IMPLEMENTED (SKIP THESE)
+=============================================================================
+✅ User authentication (signup, login, JWT)
+✅ File upload system (with R2/cloud storage)
+✅ Database schema (users, uploads, tokens, projects, generations)
+✅ Token pricing seed data
+
+
+CORE FEATURES TO IMPLEMENT
+=============================================================================
+
+FEATURE 1: TOKEN MANAGEMENT SYSTEM
+-----------------------------------------------------------------------------
+Priority: HIGH (Required for all other features)
+Estimated Time: 2-3 days
+
+1.1 Signup Bonus
+   - Automatically grant 1,000 tokens when user signs up
+   - Create userTokens record with balance = 1000
+   - Create tokenTransactions record (type: 'credit', reason: 'signup_bonus')
+   - Trigger: On user registration success
+
+1.2 Token Balance API
+   Endpoint: GET /api/tokens/balance
+   Auth: Required
+   Response:
+   {
+     "balance": 850,
+     "totalEarned": 1000,
+     "totalSpent": 150
+   }
+
+1.3 Token Transaction History
+   Endpoint: GET /api/tokens/history
+   Auth: Required
+   Query Params:
+   - limit (default: 50, max: 100)
+   - offset (default: 0)
+   - type (optional: 'credit' | 'debit')
+   Response:
+   {
+     "transactions": [
+       {
+         "id": "uuid",
+         "type": "debit",
+         "amount": 100,
+         "balanceAfter": 850,
+         "reason": "text_to_image",
+         "referenceType": "image_generation",
+         "referenceId": "uuid",
+         "createdAt": "2025-10-25T10:00:00Z"
+       }
+     ],
+     "total": 5,
+     "hasMore": false
+   }
+
+1.4 Admin Token Top-Up
+   Endpoint: POST /api/admin/tokens/topup
+   Auth: Required (Admin role only)
+   Body:
+   {
+     "userId": "uuid",
+     "amount": 5000,
+     "notes": "Customer paid $20 via PayPal"
+   }
+   Response:
+   {
+     "success": true,
+     "newBalance": 5850,
+     "transactionId": "uuid"
+   }
+
+Technical Notes:
+- Use database transactions to ensure token balance consistency
+- Validate balance before deducting tokens
+- Log all token operations for audit trail
+- Prevent negative balances
+
+
+FEATURE 2: GEMINI SERVICE INTEGRATION
+-----------------------------------------------------------------------------
+Priority: HIGH (Core of the app)
+Estimated Time: 3-4 days
+
+2.1 Gemini Service Class
+   File: server/src/services/gemini/GeminiService.js
+   
+   Methods:
+   - generateImage(prompt, options)
+   - editImage(imageBuffer, prompt, options)
+   - composeImages(imageBuffers[], prompt, options)
+   - styleTransfer(contentBuffer, styleBuffer, options)
+   
+   Features:
+   - Initialize Google Generative AI client
+   - Handle image encoding (base64)
+   - Extract image from response
+   - Error handling with retry logic
+   - Rate limiting (15 requests/min for free tier)
+
+2.2 Prompt Engineering Templates
+   File: server/src/services/gemini/promptTemplates.js
+   
+   Templates for common operations:
+   - REMOVE_BACKGROUND
+   - CHANGE_BACKGROUND(sceneDescription)
+   - FLIP_HORIZONTAL
+   - CHANGE_COLOR(fromColor, toColor)
+   - ROTATE_ANGLE(degrees)
+   - ENHANCE_LIGHTING
+   - ADD_SHADOWS
+   
+   Example:
+   REMOVE_BACKGROUND = `
+     Remove the background from this product image.
+     Make it pure white or transparent.
+     Keep the product sharp with clean, precise edges.
+     Professional product photography quality.
+   `
+
+2.3 Token Cost Calculator
+   File: server/src/services/tokens/TokenCostCalculator.js
+   
+   Methods:
+   - getOperationCost(operationType)
+   - validateBalance(userId, operationType)
+   - deductTokens(userId, operationType, referenceId)
+   
+   Cost Mapping:
+   - text_to_image: 100 tokens
+   - image_edit_simple: 100 tokens
+   - image_edit_complex: 150 tokens
+   - multi_image_composition: 200 tokens
+   - style_transfer: 150 tokens
+   - conversational_edit: 100 tokens
+   - text_rendering: 100 tokens
+   - custom_prompt: 100 tokens
+
+
+FEATURE 3: IMAGE GENERATION ENDPOINTS
+-----------------------------------------------------------------------------
+Priority: HIGH
+Estimated Time: 4-5 days
+
+3.1 Text-to-Image Generation
+   Endpoint: POST /api/generate/text-to-image
+   Auth: Required
+   Body:
+   {
+     "prompt": "A wireless headphone on a modern desk",
+     "projectId": "uuid" (optional),
+     "aspectRatio": "1:1" (optional, default: "1:1")
+   }
+   
+   Process:
+   1. Check user token balance (need 100 tokens)
+   2. Create imageGeneration record (status: 'processing')
+   3. Enhance prompt with product photography keywords
+   4. Call Gemini API
+   5. Upload generated image to storage
+   6. Create upload record
+   7. Update imageGeneration (status: 'completed', outputImageId)
+   8. Deduct 100 tokens
+   9. Return result
+   
+   Response:
+   {
+     "success": true,
+     "generationId": "uuid",
+     "imageUrl": "https://cdn.../image.png",
+     "tokensUsed": 100,
+     "remainingBalance": 750,
+     "processingTimeMs": 2450
+   }
+
+3.2 Simple Image Edit
+   Endpoint: POST /api/generate/edit-simple
+   Auth: Required
+   Body (multipart/form-data):
+   - image: file
+   - prompt: "Remove the background"
+   - projectId: "uuid" (optional)
+   
+   Process:
+   1. Validate token balance (100 tokens)
+   2. Create imageGeneration record
+   3. Read uploaded image file
+   4. Check if prompt matches template (use template if match)
+   5. Call Gemini API with image + prompt
+   6. Upload result
+   7. Update generation record
+   8. Deduct tokens
+   
+   Response: Same as text-to-image
+
+3.3 Complex Image Edit
+   Endpoint: POST /api/generate/edit-complex
+   Auth: Required
+   Body (multipart/form-data):
+   - image: file
+   - prompt: "Remove background and add shadows, then flip horizontally"
+   - projectId: "uuid" (optional)
+   
+   Process: Same as simple edit but costs 150 tokens
+   
+   Note: Use lower temperature (0.6) for more control
+
+3.4 Multi-Image Composition
+   Endpoint: POST /api/generate/compose
+   Auth: Required
+   Body (multipart/form-data):
+   - images: file[] (2-3 images)
+   - prompt: "Combine these products in one modern scene"
+   - projectId: "uuid" (optional)
+   
+   Process:
+   1. Validate balance (200 tokens)
+   2. Read all images
+   3. Create parts array with prompt + images
+   4. Call Gemini API
+   5. Deduct 200 tokens
+   
+   Response: Same as text-to-image
+
+3.5 Style Transfer
+   Endpoint: POST /api/generate/style-transfer
+   Auth: Required
+   Body (multipart/form-data):
+   - contentImage: file (the main image)
+   - styleImage: file (style reference)
+   - projectId: "uuid" (optional)
+   
+   Process:
+   1. Validate balance (150 tokens)
+   2. Read both images
+   3. Call Gemini with style transfer prompt
+   4. Deduct 150 tokens
+   
+   Response: Same as text-to-image
+
+
+FEATURE 4: QUICK ACTIONS (UI SHORTCUTS)
+-----------------------------------------------------------------------------
+Priority: MEDIUM
+Estimated Time: 2 days
+
+4.1 Pre-Built Operations
+   Endpoint: POST /api/generate/quick-action
+   Auth: Required
+   Body (multipart/form-data):
+   - image: file
+   - action: "remove_background" | "flip_horizontal" | "enhance_lighting" | "add_shadows"
+   - projectId: "uuid" (optional)
+   
+   Mapping:
+   - "remove_background" → Use REMOVE_BACKGROUND template (100 tokens)
+   - "flip_horizontal" → "Flip this image horizontally" (100 tokens)
+   - "enhance_lighting" → "Make this brighter and well-lit" (100 tokens)
+   - "add_shadows" → "Add realistic shadows" (100 tokens)
+   
+   Response: Same as edit-simple
+   
+   Note: This is just a wrapper around edit-simple with pre-made prompts
+
+
+FEATURE 5: PROJECT MANAGEMENT
+-----------------------------------------------------------------------------
+Priority: MEDIUM
+Estimated Time: 2-3 days
+
+5.1 Create Project
+   Endpoint: POST /api/projects
+   Auth: Required
+   Body:
+   {
+     "name": "Summer Collection 2025",
+     "description": "Product images for summer campaign"
+   }
+   Response:
+   {
+     "id": "uuid",
+     "name": "Summer Collection 2025",
+     "status": "active",
+     "createdAt": "2025-10-25T10:00:00Z"
+   }
+
+5.2 List User Projects
+   Endpoint: GET /api/projects
+   Auth: Required
+   Query Params:
+   - status (optional: 'active' | 'archived' | 'deleted')
+   - limit (default: 20)
+   - offset (default: 0)
+   
+   Response:
+   {
+     "projects": [
+       {
+         "id": "uuid",
+         "name": "Summer Collection 2025",
+         "description": "...",
+         "status": "active",
+         "imageCount": 12,
+         "createdAt": "...",
+         "updatedAt": "..."
+       }
+     ],
+     "total": 5
+   }
+
+5.3 Get Project Details
+   Endpoint: GET /api/projects/:projectId
+   Auth: Required
+   
+   Response:
+   {
+     "id": "uuid",
+     "name": "Summer Collection 2025",
+     "description": "...",
+     "status": "active",
+     "generations": [
+       {
+         "id": "uuid",
+         "operationType": "text_to_image",
+         "prompt": "...",
+         "outputImageUrl": "...",
+         "tokensUsed": 100,
+         "createdAt": "..."
+       }
+     ],
+     "totalGenerations": 12,
+     "totalTokensSpent": 1200
+   }
+
+5.4 Update Project
+   Endpoint: PATCH /api/projects/:projectId
+   Auth: Required
+   Body:
+   {
+     "name": "New name" (optional),
+     "description": "New description" (optional),
+     "status": "archived" (optional)
+   }
+
+5.5 Delete Project
+   Endpoint: DELETE /api/projects/:projectId
+   Auth: Required
+   
+   Note: Soft delete (set status = 'deleted')
+
+
+FEATURE 6: GENERATION HISTORY
+-----------------------------------------------------------------------------
+Priority: MEDIUM
+Estimated Time: 1-2 days
+
+6.1 List User Generations
+   Endpoint: GET /api/generations
+   Auth: Required
+   Query Params:
+   - projectId (optional, filter by project)
+   - operationType (optional)
+   - status (optional)
+   - limit (default: 20)
+   - offset (default: 0)
+   - sortBy (default: 'createdAt', options: 'createdAt' | 'tokensUsed')
+   - order (default: 'desc', options: 'asc' | 'desc')
+   
+   Response:
+   {
+     "generations": [
+       {
+         "id": "uuid",
+         "operationType": "text_to_image",
+         "prompt": "A wireless headphone...",
+         "outputImageUrl": "https://...",
+         "status": "completed",
+         "tokensUsed": 100,
+         "processingTimeMs": 2450,
+         "createdAt": "2025-10-25T10:00:00Z"
+       }
+     ],
+     "total": 45
+   }
+
+6.2 Get Generation Details
+   Endpoint: GET /api/generations/:generationId
+   Auth: Required
+   
+   Response: Full generation object with all metadata
+
+
+FEATURE 7: CONVERSATIONAL EDITING
+-----------------------------------------------------------------------------
+Priority: LOW (Can be Phase 2)
+Estimated Time: 3-4 days
+
+7.1 Start Conversation
+   Endpoint: POST /api/conversation/start
+   Auth: Required
+   Body (multipart/form-data):
+   - image: file
+   - prompt: "Remove the background"
+   - projectId: "uuid" (optional)
+   
+   Response:
+   {
+     "conversationId": "uuid",
+     "generationId": "uuid",
+     "imageUrl": "https://...",
+     "tokensUsed": 100,
+     "remainingBalance": 650
+   }
+
+7.2 Continue Conversation
+   Endpoint: POST /api/conversation/:conversationId/continue
+   Auth: Required
+   Body:
+   {
+     "prompt": "Actually, make it gray instead of white"
+   }
+   
+   Process:
+   1. Get last generation from conversation
+   2. Use its output image as input
+   3. Call Gemini with new prompt
+   4. Link to conversation (parentGenerationId)
+   5. Deduct 100 tokens
+   
+   Response: Same as start
+
+7.3 Get Conversation History
+   Endpoint: GET /api/conversation/:conversationId
+   Auth: Required
+   
+   Response:
+   {
+     "conversationId": "uuid",
+     "generations": [
+       {
+         "id": "uuid",
+         "prompt": "Remove the background",
+         "imageUrl": "...",
+         "version": 1,
+         "createdAt": "..."
+       },
+       {
+         "id": "uuid", 
+         "prompt": "Make it gray instead",
+         "imageUrl": "...",
+         "version": 2,
+         "createdAt": "..."
+       }
+     ]
+   }
+
+
+FEATURE 8: ADMIN PANEL
+-----------------------------------------------------------------------------
+Priority: LOW (Can be simple at first)
+Estimated Time: 2 days
+
+8.1 Admin Dashboard
+   Endpoint: GET /api/admin/stats
+   Auth: Required (Admin only)
+   
+   Response:
+   {
+     "totalUsers": 150,
+     "activeUsers": 89,
+     "totalGenerations": 2340,
+     "totalTokensDistributed": 150000,
+     "totalTokensUsed": 23400,
+     "avgTokensPerUser": 156
+   }
+
+8.2 User Management
+   Endpoint: GET /api/admin/users
+   Auth: Required (Admin only)
+   Query Params:
+   - search (username/email)
+   - limit, offset
+   
+   Response: List of users with token balances
+
+8.3 Manual Token Top-Up
+   (Already covered in Feature 1.4)
+
+
+TECHNICAL REQUIREMENTS
+=============================================================================
+
+1. ERROR HANDLING
+   - All endpoints return consistent error format:
+   {
+     "success": false,
+     "error": "Insufficient tokens",
+     "code": "INSUFFICIENT_TOKENS",
+     "details": { "required": 100, "available": 50 }
+   }
+   
+   Error Codes:
+   - INSUFFICIENT_TOKENS
+   - INVALID_IMAGE_FORMAT
+   - IMAGE_TOO_LARGE
+   - GENERATION_FAILED
+   - RATE_LIMIT_EXCEEDED
+   - UNAUTHORIZED
+   - NOT_FOUND
+
+2. RATE LIMITING
+   - Per user: 50 requests per hour
+   - Per IP: 100 requests per hour
+   - Gemini API: 15 requests per minute (free tier)
+   
+   Implementation: Use express-rate-limit middleware
+
+3. IMAGE VALIDATION
+   - Max file size: 10MB
+   - Allowed formats: JPEG, PNG, WebP
+   - Max dimensions: 4096x4096 pixels
+   - Validate before processing
+
+4. SECURITY
+   - Validate userId from JWT matches request
+   - Sanitize all prompts (remove scripts, check length)
+   - Validate file uploads (check mime types)
+   - Admin endpoints: verify role === 'admin'
+   - No user can access other users' data
+
+5. LOGGING
+   - Log all token transactions
+   - Log all generation requests (success/failure)
+   - Log API errors with context
+   - Use structured logging (JSON format)
+
+6. MONITORING
+   - Track generation success/failure rate
+   - Monitor average processing time
+   - Alert if token balance goes negative (bug)
+   - Track Gemini API rate limit usage
+
+
+IMPLEMENTATION PHASES
+=============================================================================
+
+PHASE 1 (Week 1): Foundation
+   Day 1-2: Token Management System
+   - Signup bonus trigger
+   - Balance API
+   - Transaction history
+   - Admin top-up
+   
+   Day 3-4: Gemini Service
+   - Service class with basic methods
+   - Prompt templates
+   - Error handling
+   - Rate limiting
+   
+   Day 5-7: Text-to-Image + Simple Edit
+   - Text-to-image endpoint
+   - Simple edit endpoint
+   - Token deduction logic
+   - Basic testing
+
+PHASE 2 (Week 2): Core Features
+   Day 8-10: Advanced Editing
+   - Complex edit endpoint
+   - Multi-image composition
+   - Style transfer
+   - Quick actions
+   
+   Day 11-12: Project Management
+   - CRUD operations for projects
+   - Link generations to projects
+   
+   Day 13-14: Generation History
+   - List/filter generations
+   - Get generation details
+
+PHASE 3 (Week 3): Polish & Launch
+   Day 15-16: Admin Panel
+   - Admin dashboard
+   - User management
+   - Token distribution
+   
+   Day 17-18: Testing & Bug Fixes
+   - Integration tests
+   - Load testing
+   - Fix critical bugs
+   
+   Day 19-21: Deployment & Documentation
+   - Deploy to production
+   - API documentation
+   - User guide
+   - Beta launch
+
+
+API ENDPOINT SUMMARY
+=============================================================================
+Token Management:
+  GET    /api/tokens/balance
+  GET    /api/tokens/history
+  POST   /api/admin/tokens/topup
+
+Image Generation:
+  POST   /api/generate/text-to-image
+  POST   /api/generate/edit-simple
+  POST   /api/generate/edit-complex
+  POST   /api/generate/compose
+  POST   /api/generate/style-transfer
+  POST   /api/generate/quick-action
+
+Project Management:
+  GET    /api/projects
+  POST   /api/projects
+  GET    /api/projects/:projectId
+  PATCH  /api/projects/:projectId
+  DELETE /api/projects/:projectId
+
+Generation History:
+  GET    /api/generations
+  GET    /api/generations/:generationId
+
+Conversational Editing (Phase 2):
+  POST   /api/conversation/start
+  POST   /api/conversation/:conversationId/continue
+  GET    /api/conversation/:conversationId
+
+Admin:
+  GET    /api/admin/stats
+  GET    /api/admin/users
+
+
+TESTING REQUIREMENTS
+=============================================================================
+
+1. UNIT TESTS
+   - Token calculation functions
+   - Prompt template generation
+   - Image validation logic
+   - Balance checking logic
+
+2. INTEGRATION TESTS
+   - Complete generation flow (text-to-image)
+   - Token deduction on success
+   - No token deduction on failure
+   - Project creation and linking
+   - Admin top-up flow
+
+3. MANUAL TESTING CHECKLIST
+   [ ] User signup grants 1,000 tokens
+   [ ] Generate image deducts correct tokens
+   [ ] Insufficient balance returns error
+   [ ] Generated images upload to storage
+   [ ] Projects can be created and linked
+   [ ] Admin can top up user tokens
+   [ ] Rate limiting works
+   [ ] Errors are logged properly
+
+4. LOAD TESTING
+   - 50 concurrent users
+   - 100 generation requests/minute
+   - Ensure Gemini rate limits are respected
+
+
+SUCCESS METRICS
+=============================================================================
+- 95% of image generations complete successfully
+- Average processing time < 5 seconds
+- Zero token balance inconsistencies
+- User can complete full workflow (signup → generate → download)
+- Admin can top up tokens without issues
+
+
+FUTURE ENHANCEMENTS (Post-MVP)
+=============================================================================
+- Automated payment integration (Stripe)
+- Batch image processing
+- Video generation (Veo API)
+- Template gallery (pre-made styles)
+- Image history/favorites
+- Team accounts
+- API for developers
+- Mobile app
+
+
+NOTES
+=============================================================================
+- Keep prompts under 500 characters for faster processing
+- Cache common prompt results (optional optimization)
+- Monitor Gemini API costs closely
+- Start with lower rate limits, increase based on usage
+- All generated images should be watermarked (SynthID by default)
+- Consider image compression to reduce storage costs
+
+
+=============================================================================
+END OF PRD
+=============================================================================

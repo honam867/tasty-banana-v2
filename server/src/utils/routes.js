@@ -8,4 +8,7 @@ export const ROUTES = {
   
   //Uploads
   UPLOADS: "/uploads",
+  
+  //Tokens
+  TOKENS: "/tokens",
 };
