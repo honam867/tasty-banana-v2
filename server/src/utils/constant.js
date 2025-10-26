@@ -121,6 +121,70 @@ export const GEMINI_DESIGN_CATEGORIES = [
   'social_media'
 ];
 
+// Gemini Error Codes
+export const GEMINI_ERRORS = {
+  INSUFFICIENT_BALANCE: 'INSUFFICIENT_BALANCE',
+  INVALID_IMAGE_FORMAT: 'INVALID_IMAGE_FORMAT',
+  IMAGE_TOO_LARGE: 'IMAGE_TOO_LARGE',
+  INVALID_PROMPT: 'INVALID_PROMPT',
+  RATE_LIMIT_EXCEEDED: 'RATE_LIMIT_EXCEEDED',
+  SERVICE_UNAVAILABLE: 'SERVICE_UNAVAILABLE',
+  INVALID_FILE_TYPE: 'INVALID_FILE_TYPE',
+  PROCESSING_ERROR: 'PROCESSING_ERROR',
+  UPLOAD_FAILED: 'UPLOAD_FAILED'
+};
+
+// Generation Status
+export const GENERATION_STATUS = {
+  PENDING: 'pending',
+  PROCESSING: 'processing',
+  COMPLETED: 'completed',
+  FAILED: 'failed',
+  CANCELLED: 'cancelled'
+};
+
+// Upload Purpose Types
+export const UPLOAD_PURPOSE = {
+  GENERATION_OUTPUT: 'generation_output',
+  GENERATION_INPUT: 'generation_input',
+  INIT: 'init',
+  MASK: 'mask',
+  REFERENCE: 'reference',
+  ATTACHMENT: 'attachment'
+};
+
+// Storage Provider Types
+export const STORAGE_PROVIDER = {
+  R2: 'r2',
+  S3: 's3',
+  LOCAL: 'local'
+};
+
+// Gemini Model Configuration
+export const GEMINI_CONFIG = {
+  DEFAULT_MODEL: 'gemini-2.5-flash-image',
+  DEFAULT_TEMPERATURE: 0.7,
+  DEFAULT_TOP_K: 40,
+  DEFAULT_TOP_P: 0.95,
+  COMPLEX_EDIT_TEMPERATURE: 0.6,
+  COMPLEX_EDIT_TOP_K: 35,
+  COMPLEX_EDIT_TOP_P: 0.92,
+  RATE_LIMIT_WINDOW_MS: 60000, // 1 minute
+  MAX_REQUESTS_PER_WINDOW: 15,
+  MAX_RETRY_ATTEMPTS: 3
+};
+
+// Token Costs for Operations (keys match operationType values)
+export const TOKEN_COSTS = {
+  text_to_image: 100,
+  image_edit_simple: 100,
+  image_edit_complex: 150,
+  multi_image_composition: 200,
+  style_transfer: 150,
+  quick_action: 100,
+  text_rendering: 100
+};
+
 export const GEMINI_LIMITS = {
   PROMPT_MIN_LENGTH: 5,
   PROMPT_MAX_LENGTH: 2000,
