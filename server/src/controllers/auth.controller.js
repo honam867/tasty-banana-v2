@@ -10,6 +10,9 @@ import {
   HTTP_STATUS,
   randomPassword,
   setResetPassEmailContent,
+  TOKEN_REASON_CODES,
+  TOKEN_ACTOR_TYPES,
+  TOKEN_USAGE,
 } from "../utils/constant.js";
 import { sendError, sendWarning } from "../utils/response.js";
 import TokenService from "../services/tokens/TokenService.js";
@@ -86,16 +89,16 @@ export const register = async (req, res) => {
     // Grant signup bonus tokens (1,000 tokens)
     try {
       console.log(`🎁 Attempting to grant signup bonus to user ${newUser.id}...`);
-      const result = await TokenService.credit(newUser.id, 1000, {
-        reasonCode: "signup_bonus",
+      const result = await TokenService.credit(newUser.id, TOKEN_USAGE.DEFAULT, {
+        reasonCode: TOKEN_REASON_CODES.SIGNUP_BONUS,
         idempotencyKey: `signup:${newUser.id}`,
-        actor: { type: "system" },
+        actor: { type: TOKEN_ACTOR_TYPES.SYSTEM },
         metadata: {
           email: newUser.email,
           signupDate: new Date().toISOString(),
         },
       });
-      console.log(`✅ Granted 1,000 signup bonus tokens to user ${newUser.id}`, result);
+      console.log(`✅ Granted ${TOKEN_USAGE.DEFAULT} signup bonus tokens to user ${newUser.id}`, result);
     } catch (tokenError) {
       // Log error but don't fail registration
       console.error("❌ Failed to grant signup bonus:", tokenError);

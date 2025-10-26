@@ -8,6 +8,11 @@ import {
   UserIdRequiredError,
   ReasonCodeRequiredError,
 } from "./TokenErrors.js";
+import {
+  TOKEN_TRANSACTION_TYPES,
+  TOKEN_ACTOR_TYPES,
+  TOKEN_PAGINATION,
+} from "../../utils/constant.js";
 
 /**
  * TokenService - Handles all token operations with ACID guarantees
@@ -36,7 +41,7 @@ class TokenService {
     const {
       reasonCode,
       idempotencyKey = null,
-      actor = { type: "system" },
+      actor = { type: TOKEN_ACTOR_TYPES.SYSTEM },
       metadata = {},
     } = options;
 
@@ -125,7 +130,7 @@ class TokenService {
         .insert(tokenTransactions)
         .values({
           userId,
-          type: "credit",
+          type: TOKEN_TRANSACTION_TYPES.CREDIT,
           amount,
           balanceAfter: newBalance,
           reason: reasonCode,
@@ -134,7 +139,7 @@ class TokenService {
             actor,
             metadata,
           }),
-          adminId: actor.type === "admin" ? actor.id : null,
+          adminId: actor.type === TOKEN_ACTOR_TYPES.ADMIN ? actor.id : null,
         })
         .returning();
 
@@ -164,7 +169,7 @@ class TokenService {
     const {
       reasonCode,
       idempotencyKey = null,
-      actor = { type: "system" },
+      actor = { type: TOKEN_ACTOR_TYPES.SYSTEM },
       metadata = {},
     } = options;
 
@@ -247,7 +252,7 @@ class TokenService {
         .insert(tokenTransactions)
         .values({
           userId,
-          type: "debit",
+          type: TOKEN_TRANSACTION_TYPES.DEBIT,
           amount,
           balanceAfter: newBalance,
           reason: reasonCode,
@@ -256,7 +261,7 @@ class TokenService {
             actor,
             metadata,
           }),
-          adminId: actor.type === "admin" ? actor.id : null,
+          adminId: actor.type === TOKEN_ACTOR_TYPES.ADMIN ? actor.id : null,
         })
         .returning();
 
@@ -313,14 +318,14 @@ class TokenService {
    * @returns {Promise<{items: Array, nextCursor: string|null, hasMore: boolean}>}
    */
   async getHistory(userId, options = {}) {
-    const { limit = 20, cursor = null, type = null, reason = null } = options;
+    const { limit = TOKEN_PAGINATION.DEFAULT_LIMIT, cursor = null, type = null, reason = null } = options;
 
     if (!userId) {
       throw new Error("USER_ID_REQUIRED");
     }
 
     // Validate and cap limit
-    const effectiveLimit = Math.min(Math.max(1, limit), 100);
+    const effectiveLimit = Math.min(Math.max(TOKEN_PAGINATION.MIN_LIMIT, limit), TOKEN_PAGINATION.MAX_LIMIT);
 
     // Build query conditions
     const conditions = [eq(tokenTransactions.userId, userId)];
