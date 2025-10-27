@@ -5,22 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1761320172002,
-      "tag": "0000_overjoyed_hardball",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1761375080616,
-      "tag": "0001_slippery_jack_power",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1761401629270,
-      "tag": "0002_unique_fixer",
+      "when": 1761580316259,
+      "tag": "0000_zippy_rocket_raccoon",
       "breakpoints": true
     }
   ]

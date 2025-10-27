@@ -7,11 +7,11 @@ import { body, validationResult } from 'express-validator';
 import fs from 'fs';
 import {
   GEMINI_ASPECT_RATIOS,
-  GEMINI_STYLES,
   GEMINI_TEMPLATES,
   GEMINI_QUICK_ACTIONS,
   GEMINI_DESIGN_CATEGORIES,
-  GEMINI_LIMITS
+  GEMINI_LIMITS,
+  IMAGE_OPERATION_TYPES
 } from '../utils/constant.js';
 
 // ========================================
@@ -37,30 +37,30 @@ export const validateAmount = (amount) => {
 /**
  * Validate reason code
  */
-const VALID_REASON_CODES = [
-  "signup_bonus",
-  "admin_topup",
-  "text_to_image",
-  "image_edit_simple",
-  "image_edit_complex",
-  "multi_image_composition",
-  "style_transfer",
-  "conversational_edit",
-  "text_rendering",
-  "custom_prompt",
-  "refund",
-  "adjustment",
-];
+// const VALID_REASON_CODES = [
+//   "signup_bonus",
+//   "admin_topup",
+//   IMAGE_OPERATION_TYPES.TEXT_TO_IMAGE,
+//   IMAGE_OPERATION_TYPES.IMAGE_EDIT_SIMPLE,
+//   IMAGE_OPERATION_TYPES.IMAGE_EDIT_COMPLEX,
+//   IMAGE_OPERATION_TYPES.MULTI_IMAGE_COMPOSITION,
+//   IMAGE_OPERATION_TYPES.STYLE_TRANSFER,
+//   "conversational_edit",
+//   IMAGE_OPERATION_TYPES.TEXT_RENDERING,
+//   IMAGE_OPERATION_TYPES.CUSTOM_PROMPT,
+//   "refund",
+//   "adjustment",
+// ];
 
-export const validateReasonCode = (code) => {
-  if (!code || typeof code !== "string") {
-    throw new Error("Reason code is required");
-  }
-  if (!VALID_REASON_CODES.includes(code)) {
-    throw new Error(`Invalid reason code: ${code}`);
-  }
-  return code;
-};
+// export const validateReasonCode = (code) => {
+//   if (!code || typeof code !== "string") {
+//     throw new Error("Reason code is required");
+//   }
+//   // if (!VALID_REASON_CODES.includes(code)) {
+//   //   throw new Error(`Invalid reason code: ${code}`);
+//   // }
+//   return code;
+// };
 
 /**
  * Validate idempotency key format
@@ -159,10 +159,13 @@ export const validateTextToImage = [
     .optional()
     .isIn(GEMINI_ASPECT_RATIOS)
     .withMessage(`Invalid aspect ratio. Allowed: ${GEMINI_ASPECT_RATIOS.join(', ')}`),
-  body('style')
+  body('numberOfImages')
     .optional()
-    .isIn(GEMINI_STYLES)
-    .withMessage(`Invalid style. Allowed: ${GEMINI_STYLES.join(', ')}`),
+    .isInt({ 
+      min: GEMINI_LIMITS.NUMBER_OF_IMAGES_MIN, 
+      max: GEMINI_LIMITS.NUMBER_OF_IMAGES_MAX 
+    })
+    .withMessage(`Number of images must be between ${GEMINI_LIMITS.NUMBER_OF_IMAGES_MIN} and ${GEMINI_LIMITS.NUMBER_OF_IMAGES_MAX}`),
   body('projectId')
     .optional()
     .isUUID()

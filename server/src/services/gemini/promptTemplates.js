@@ -4,67 +4,28 @@
  */
 
 class PromptTemplates {
-  
   /**
    * Text-to-Image Templates
    */
   static textToImage(basePrompt, options = {}) {
-    const {
-      style = 'product_photography',
-      lighting = 'studio',
-      background = 'white',
-      mood = 'professional'
-    } = options;
-
-    const templates = {
-      product_photography: `
-        Create a professional product photograph of ${basePrompt}.
-        
-        Photography specifications:
-        - High resolution, sharp focus on product
-        - Clean, minimalist composition
-        - ${lighting} lighting with soft shadows
-        - ${background} background
-        - Commercial-grade quality
-        - Perfect for e-commerce listings
-        
-        Style: ${mood}, high-end, luxury commercial photography
-      `.trim(),
+    // Simply enhance the base prompt with professional photography standards
+    return `
+      ${basePrompt}
       
-      lifestyle: `
-        Create a lifestyle photograph featuring ${basePrompt}.
-        
-        Photography specifications:
-        - Natural, authentic settings
-        - Context that shows product in use
-        - Warm, inviting lighting
-        - Realistic scene composition
-        - Professional-quality lifestyle photography
-        
-        Style: Editorial, lifestyle magazine quality
-      `.trim(),
-      
-      creative: `
-        Create an artistic and creative interpretation of ${basePrompt}.
-        
-        Artistic specifications:
-        - Creative composition and angles
-        - Unique visual perspective
-        - Professional artistic quality
-        - Maintains product recognition
-        - Suitable for marketing campaigns
-        
-        Style: Creative, artistic, high-end commercial art
-      `.trim()
-    };
-
-    return templates[style] || templates.product_photography;
+      Professional product photography specifications:
+      - High resolution, sharp focus
+      - Clean, minimalist composition
+      - Studio lighting with soft shadows
+      - Clean background
+      - Commercial-grade quality
+      - Perfect for e-commerce and marketing
+    `.trim();
   }
 
   /**
    * Simple Edit Templates
    */
-  static simpleEdit(action, details = '') {
+  static simpleEdit(action, details = "") {
     const templates = {
       remove_background: `
         Remove the background from this product image.
@@ -72,19 +33,19 @@ class PromptTemplates {
         Keep the product exactly as it is, just change the background.
         Ensure clean, professional edges without any halos.
       `.trim(),
-      
+
       flip_horizontal: `
         Flip this image horizontally (mirror the image).
         Keep the product, lighting, and all qualities the same.
         Perfect mirroring without any distortion.
       `.trim(),
-      
+
       flip_vertical: `
         Flip this image vertically.
         Keep all aspects of the image the same except for vertical mirroring.
         Maintain perfect quality and composition.
       `.trim(),
-      
+
       enhance_lighting: `
         Improve the lighting in this product photograph.
         Make it brighter and more evenly lit.
@@ -92,34 +53,34 @@ class PromptTemplates {
         Maintain a natural, professional appearance.
         Don't overexpose or create harsh shadows.
       `.trim(),
-      
+
       center_product: `
         Center this product perfectly in the frame.
         Improve the composition while keeping the product unchanged.
         Balance the frame professionally.
         Maintain all lighting and appearance of the product.
       `.trim(),
-      
+
       add_shadows: `
         Add subtle, professional shadows underneath the product.
         Create depth and dimension with soft, natural shadows.
         Keep shadows realistic and not harsh.
         Maintain studio photography quality.
       `.trim(),
-      
+
       sharpen_details: `
         Sharpen the details and make the image more crisp and clear.
         Enhance overall sharpness while maintaining a natural look.
         Focus on product details and textures.
         Professional enhancement without over-sharpening.
       `.trim(),
-      
+
       enhance_colors: `
         Make the colors in this image more vibrant and professional.
         Enhance color saturation slightly for better appearance.
         Maintain realistic and commercial-quality colors.
         Don't oversaturate or make colors look fake.
-      `.trim()
+      `.trim(),
     };
 
     const baseTemplate = templates[action];
@@ -133,7 +94,7 @@ class PromptTemplates {
   /**
    * Complex Edit Templates
    */
-  static complexEdit(scenario, customDetails = '') {
+  static complexEdit(scenario, customDetails = "") {
     const templates = {
       complete_transformation: `
         Transform this product image into professional e-commerce quality:
@@ -147,7 +108,7 @@ class PromptTemplates {
         
         Final result: Studio-quality product photography suitable for online stores.
       `.trim(),
-      
+
       background_scene_change: `
         Change this product's background with professional quality:
         
@@ -158,9 +119,9 @@ class PromptTemplates {
         - Professional commercial quality
         - Keep product as the main focus
         
-        ${customDetails ? `Additional details: ${customDetails}` : ''}
+        ${customDetails ? `Additional details: ${customDetails}` : ""}
       `.trim(),
-      
+
       lighting_enhancement: `
         Professional lighting correction for this product image:
         
@@ -173,7 +134,7 @@ class PromptTemplates {
         
         Result: Professional e-commerce photography lighting.
       `.trim(),
-      
+
       color_correction: `
         Professional color correction for this product:
         
@@ -183,13 +144,16 @@ class PromptTemplates {
         - Enhance saturation slightly for better appearance
         - Maintain realistic product appearance
         - Professional commercial-grade color quality
-      `.trim()
+      `.trim(),
     };
 
     const baseTemplate = templates[scenario];
     if (!baseTemplate) {
       // If no predefined scenario, treat as custom
-      return customDetails || 'Please make the specified professional edits to this product image.';
+      return (
+        customDetails ||
+        "Please make the specified professional edits to this product image."
+      );
     }
 
     return baseTemplate;
@@ -198,7 +162,7 @@ class PromptTemplates {
   /**
    * Composition Templates
    */
-  static composition(scenario, customDetails = '') {
+  static composition(scenario, customDetails = "") {
     const templates = {
       product_lifestyle: `
         Create a professional lifestyle scene with the provided products:
@@ -210,9 +174,9 @@ class PromptTemplates {
         - Show products in context of real use
         - Professional e-commerce lifestyle photography
         
-        ${customDetails ? `Additional requirements: ${customDetails}` : ''}
+        ${customDetails ? `Additional requirements: ${customDetails}` : ""}
       `.trim(),
-      
+
       product_grouping: `
         Create a professional group shot of these products:
         
@@ -224,7 +188,7 @@ class PromptTemplates {
         - Balance and good composition
         - Commercial-quality product group photography
       `.trim(),
-      
+
       scene_creation: `
         Compose these products into a professional commercial scene:
         
@@ -235,13 +199,16 @@ class PromptTemplates {
         - High-end commercial photography quality
         - Balanced, attractive arrangement
         
-        ${customDetails ? `Scene details: ${customDetails}` : ''}
-      `.trim()
+        ${customDetails ? `Scene details: ${customDetails}` : ""}
+      `.trim(),
     };
 
     const baseTemplate = templates[scenario];
     if (!baseTemplate) {
-      return customDetails || 'Please create a professional composition with these products.';
+      return (
+        customDetails ||
+        "Please create a professional composition with these products."
+      );
     }
 
     return baseTemplate;
@@ -250,7 +217,7 @@ class PromptTemplates {
   /**
    * Style Transfer Templates
    */
-  static styleTransfer(scenario, customDetails = '') {
+  static styleTransfer(scenario, customDetails = "") {
     const templates = {
       artistic_style: `
         Apply the artistic style from the style image to the content image:
@@ -262,7 +229,7 @@ class PromptTemplates {
         - Professional artistic quality suitable for marketing
         - Balance creativity with product clarity
       `.trim(),
-      
+
       mood_transfer: `
         Transfer the mood and atmosphere while maintaining clarity:
         
@@ -273,7 +240,7 @@ class PromptTemplates {
         - Suitable for branding and marketing
         - Maintain professional appeal
       `.trim(),
-      
+
       aesthetic_enhancement: `
         Enhance the content image with aesthetic qualities from the style image:
         
@@ -283,12 +250,15 @@ class PromptTemplates {
         - Professional commercial quality
         - Appealing to target customers
         - Suitable for e-commerce and marketing
-      `.trim()
+      `.trim(),
     };
 
     const baseTemplate = templates[scenario];
     if (!baseTemplate) {
-      return customDetails || 'Please apply the style from the second image to the first while maintaining product clarity and professional quality.';
+      return (
+        customDetails ||
+        "Please apply the style from the second image to the first while maintaining product clarity and professional quality."
+      );
     }
 
     return baseTemplate;
@@ -297,23 +267,26 @@ class PromptTemplates {
   /**
    * Quick Action Templates (simplified versions)
    */
-  static quickAction(action, customPrompt = '') {
+  static quickAction(action, customPrompt = "") {
     if (customPrompt) {
       return customPrompt;
     }
 
     const quickTemplates = {
-      remove_background: 'Remove background, make it pure white.',
-      flip_horizontal: 'Flip horizontally.',
-      flip_vertical: 'Flip vertically.',
-      enhance_lighting: 'Brighten lighting, make it professional.',
-      add_shadows: 'Add soft shadows underneath.',
-      center_product: 'Center the product.',
-      sharpen_details: 'Sharpen details for clarity.',
-      enhance_colors: 'Make colors slightly more vibrant.'
+      remove_background: "Remove background, make it pure white.",
+      flip_horizontal: "Flip horizontally.",
+      flip_vertical: "Flip vertically.",
+      enhance_lighting: "Brighten lighting, make it professional.",
+      add_shadows: "Add soft shadows underneath.",
+      center_product: "Center the product.",
+      sharpen_details: "Sharpen details for clarity.",
+      enhance_colors: "Make colors slightly more vibrant.",
     };
 
-    return quickTemplates[action] || 'Please make professional improvements to this product image.';
+    return (
+      quickTemplates[action] ||
+      "Please make professional improvements to this product image."
+    );
   }
 
   /**
@@ -334,7 +307,7 @@ class PromptTemplates {
         
         Ensure the text is perfectly legible and professionally rendered.
       `.trim(),
-      
+
       banner_design: `
         Create a professional promotional banner with the text "${text}".
         
@@ -348,7 +321,7 @@ class PromptTemplates {
         
         The text must be prominent, clear, and professionally presented.
       `.trim(),
-      
+
       social_media: `
         Design a professional social media post featuring "${text}".
         
@@ -361,11 +334,15 @@ class PromptTemplates {
         - Engaging visual composition
         
         Ensure perfect legibility and professional appearance.
-      `.trim()
+      `.trim(),
     };
 
-    const baseTemplate = templates[designStyle.category] || templates.logo_design;
-    return baseTemplate.replace('${designStyle}', designStyle.description || designStyle.style || '');
+    const baseTemplate =
+      templates[designStyle.category] || templates.logo_design;
+    return baseTemplate.replace(
+      "${designStyle}",
+      designStyle.description || designStyle.style || ""
+    );
   }
 
   /**
@@ -373,10 +350,10 @@ class PromptTemplates {
    */
   static enhanceProductPrompt(basePrompt, options = {}) {
     const {
-      angle = 'straight_on',
-      lighting = 'studio',
-      mood = 'professional',
-      details = 'high'
+      angle = "straight_on",
+      lighting = "studio",
+      mood = "professional",
+      details = "high",
     } = options;
 
     return `
@@ -399,7 +376,7 @@ class PromptTemplates {
   /**
    * E-commerce Specific Prompts
    */
-  static ecommercePrompt(productType, context = '') {
+  static ecommercePrompt(productType, context = "") {
     const baseTemplates = {
       clothing: `
         Professional apparel photography of ${productType}.
@@ -407,49 +384,56 @@ class PromptTemplates {
         Wrinkle-free, properly sized display.
         Premium fashion retail quality.
       `,
-      
+
       electronics: `
         High-tech product photography of ${productType}.
         Show clean lines and modern design features.
         Sleek, professional presentation with clear details.
         Technical precision and modern aesthetic.
       `,
-      
+
       home_goods: `
         Lifestyle home product photography of ${productType}.
         Domestic, comfortable setting with natural lighting.
         Show product in authentic home context.
         Warm, inviting appearance for household items.
       `,
-      
+
       food_beverage: `
         Appetizing food photography of ${productType}.
         Fresh, appealing presentation with natural ingredients.
         Vibrant colors and fresh appearance.
         Professional food styling, restaurant-quality.
       `,
-      
+
       beauty_cosmetics: `
         Beauty product photography of ${productType}.
         Clean, elegant presentation with premium quality.
         Show packaging and product details clearly.
         Luxury beauty retail presentation.
       `,
-      
+
       general: `
         Professional product photography of ${productType}.
         Clean, commercial-quality presentation.
         Studio lighting with neutral background.
         Retail-ready appearance for online stores.
-      `
+      `,
     };
 
-    const category = context.toLowerCase().includes('clothing') ? 'clothing' :
-                     context.toLowerCase().includes('electronic') ? 'electronics' :
-                     context.toLowerCase().includes('home') ? 'home_goods' :
-                     context.toLowerCase().includes('food') || context.toLowerCase().includes('beverage') ? 'food_beverage' :
-                     context.toLowerCase().includes('beauty') || context.toLowerCase().includes('cosmetic') ? 'beauty_cosmetics' :
-                     'general';
+    const category = context.toLowerCase().includes("clothing")
+      ? "clothing"
+      : context.toLowerCase().includes("electronic")
+      ? "electronics"
+      : context.toLowerCase().includes("home")
+      ? "home_goods"
+      : context.toLowerCase().includes("food") ||
+        context.toLowerCase().includes("beverage")
+      ? "food_beverage"
+      : context.toLowerCase().includes("beauty") ||
+        context.toLowerCase().includes("cosmetic")
+      ? "beauty_cosmetics"
+      : "general";
 
     return baseTemplates[category].trim();
   }

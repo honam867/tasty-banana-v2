@@ -70,10 +70,20 @@ export const DATE = {
   MONTHS: "months",
 };
 
+// Image Generation Operation Types
+export const IMAGE_OPERATION_TYPES = {
+  TEXT_TO_IMAGE: "text_to_image",
+  IMAGE_EDIT_SIMPLE: "image_edit_simple",
+  IMAGE_EDIT_COMPLEX: "image_edit_complex",
+  MULTI_IMAGE_COMPOSITION: "multi_image_composition",
+  STYLE_TRANSFER: "style_transfer",
+  QUICK_ACTION: "quick_action",
+  TEXT_RENDERING: "text_rendering",
+  CUSTOM_PROMPT: "custom_prompt",
+};
+
 // Gemini Image Generation Constants
 export const GEMINI_ASPECT_RATIOS = ['1:1', '16:9', '9:16', '4:3', '3:4'];
-
-export const GEMINI_STYLES = ['product_photography', 'lifestyle', 'creative'];
 
 export const GEMINI_TEMPLATES = {
   SIMPLE: [
@@ -176,13 +186,13 @@ export const GEMINI_CONFIG = {
 
 // Token Costs for Operations (keys match operationType values)
 export const TOKEN_COSTS = {
-  text_to_image: 100,
-  image_edit_simple: 100,
-  image_edit_complex: 150,
-  multi_image_composition: 200,
-  style_transfer: 150,
-  quick_action: 100,
-  text_rendering: 100
+  [IMAGE_OPERATION_TYPES.TEXT_TO_IMAGE]: 100,
+  [IMAGE_OPERATION_TYPES.IMAGE_EDIT_SIMPLE]: 100,
+  [IMAGE_OPERATION_TYPES.IMAGE_EDIT_COMPLEX]: 150,
+  [IMAGE_OPERATION_TYPES.MULTI_IMAGE_COMPOSITION]: 200,
+  [IMAGE_OPERATION_TYPES.STYLE_TRANSFER]: 150,
+  [IMAGE_OPERATION_TYPES.QUICK_ACTION]: 100,
+  [IMAGE_OPERATION_TYPES.TEXT_RENDERING]: 100
 };
 
 export const GEMINI_LIMITS = {
@@ -198,7 +208,9 @@ export const GEMINI_LIMITS = {
   IMAGE_WIDTH_MIN: 32,
   IMAGE_HEIGHT_MIN: 32,
   COMPOSE_IMAGES_MIN: 2,
-  COMPOSE_IMAGES_MAX: 3
+  COMPOSE_IMAGES_MAX: 3,
+  NUMBER_OF_IMAGES_MIN: 1,
+  NUMBER_OF_IMAGES_MAX: 4
 };
 
 export const GEMINI_ALLOWED_TYPES = [

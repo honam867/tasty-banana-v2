@@ -160,6 +160,61 @@ export const uploadToR2 = async ({ buffer, key, contentType, metadata = {} }) =>
 };
 
 /**
+ * Upload multiple file buffers to R2 concurrently
+ * @param {Array<Object>} uploads - Array of upload configurations
+ * @param {Buffer} uploads[].buffer - File buffer
+ * @param {string} uploads[].key - Object key/path in R2
+ * @param {string} uploads[].contentType - File MIME type
+ * @param {Object} uploads[].metadata - Optional metadata
+ * @returns {Promise<Array<Object>>} Array of upload results with URLs
+ */
+export const uploadMultipleToR2 = async (uploads) => {
+  if (!Array.isArray(uploads) || uploads.length === 0) {
+    throw new Error('uploads must be a non-empty array');
+  }
+
+  const client = getR2Client();
+  const bucket = getR2Bucket();
+
+  try {
+    // Create all upload promises
+    const uploadPromises = uploads.map(async ({ buffer, key, contentType, metadata = {} }) => {
+      const upload = new Upload({
+        client,
+        params: {
+          Bucket: bucket,
+          Key: key,
+          Body: buffer,
+          ContentType: contentType,
+          Metadata: metadata
+        }
+      });
+
+      // Execute the upload
+      const result = await upload.done();
+
+      // Generate public URL
+      const publicUrl = generatePublicUrl(key);
+
+      return {
+        success: true,
+        key,
+        publicUrl,
+        etag: result.ETag,
+        location: result.Location
+      };
+    });
+
+    // Execute all uploads concurrently
+    const results = await Promise.all(uploadPromises);
+    
+    return results;
+  } catch (error) {
+    throw new Error(`Failed to upload files to R2: ${error.message}`);
+  }
+};
+
+/**
  * Test R2 connection by attempting to list buckets
  * This is useful for verifying credentials and configuration
  * @returns {Promise<boolean>} True if connection successful
@@ -180,6 +235,7 @@ export default {
   getR2PublicBaseUrl,
   generatePublicUrl,
   uploadToR2,
+  uploadMultipleToR2,
   testR2Connection
 };
 

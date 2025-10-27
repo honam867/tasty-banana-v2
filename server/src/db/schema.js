@@ -187,10 +187,9 @@ export const imageGenerations = pgTable(
 
     projectId: uuid("project_id").references(() => imageProjects.id),
 
-    operationType: varchar("operation_type", { length: 50 }).notNull(),
-    // 'text_to_image', 'image_edit_simple', 'image_edit_complex',
-    // 'multi_image_composition', 'style_transfer', 'conversational_edit',
-    // 'text_rendering', 'custom_prompt', 'video_generation' (future)
+    operationTypeId: uuid("operation_type_id")
+      .references(() => operationType.id)
+      .notNull(),
 
     // Input data
     inputImageId: uuid("input_image_id").references(() => uploads.id),
@@ -228,8 +227,8 @@ export const imageGenerations = pgTable(
     userIdx: index("idx_image_generations_user").on(table.userId),
     projectIdx: index("idx_image_generations_project").on(table.projectId),
     statusIdx: index("idx_image_generations_status").on(table.status),
-    operationIdx: index("idx_image_generations_operation").on(
-      table.operationType
+    operationTypeIdx: index("idx_image_generations_operation_type").on(
+      table.operationTypeId
     ),
     createdAtIdx: index("idx_image_generations_created").on(table.createdAt),
   })
@@ -275,14 +274,14 @@ export const imageEditHistory = pgTable(
 );
 
 /**
- * Token Pricing Table Schema
- * Defines token costs for different operations (admin configurable)
+ * Operation Type Table Schema
+ * Defines available operation types with token costs (admin configurable)
  */
-export const tokenPricing = pgTable("token_pricing", {
+export const operationType = pgTable("operation_type", {
   id: uuid("id").primaryKey().defaultRandom(),
 
-  operationType: varchar("operation_type", { length: 50 }).notNull().unique(),
-  // 'text_to_image', 'image_edit_simple', 'image_edit_complex', etc.
+  name: varchar("name", { length: 50 }).notNull().unique(),
+  // 'text_to_image', 'image_reference', etc.
 
   tokensPerOperation: integer("tokens_per_operation").notNull(),
 

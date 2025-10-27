@@ -1,119 +1,403 @@
-import express from 'express';
-import multer from 'multer';
+import express from "express";
+import multer from "multer";
 import {
   getOperations,
   getTemplates,
   textToImage,
-  editSimple,
-  editComplex,
-  compose,
-  styleTransfer,
-  quickAction,
-  textRendering,
-} from '../controllers/gemini.controller.js';
+  // editSimple,
+  // editComplex,
+  // compose,
+  // styleTransfer,
+  // quickAction,
+  // textRendering,
+} from "../controllers/gemini.controller.js";
 import {
   validateTextToImage,
-  validateSimpleEdit,
-  validateComplexEdit,
-  validateComposition,
-  validateStyleTransfer,
-  validateQuickAction,
-  validateTextRendering,
-  validateRequestWithCleanup
-} from '../middlewares/validators.js';
+  // validateSimpleEdit,
+  // validateComplexEdit,
+  // validateComposition,
+  // validateStyleTransfer,
+  // validateQuickAction,
+  // validateTextRendering,
+  validateRequestWithCleanup,
+} from "../middlewares/validators.js";
 import {
-  uploadSingle,
-  uploadMultiple,
-  uploadStyleTransfer
-} from '../middlewares/upload.js';
-import { GEMINI_LIMITS, GEMINI_ERRORS } from '../utils/constant.js';
+  // uploadSingle,
+  // uploadMultiple,
+  // uploadStyleTransfer,
+} from "../middlewares/upload.js";
+import { verifyToken } from "../middlewares/tokenHandler.js";
+import { asyncHandler } from "../middlewares/errorHandler.js";
+import { GEMINI_LIMITS, GEMINI_ERRORS } from "../utils/constant.js";
 
 const router = express.Router();
 
-// GET /api/generate/operations - List available operations with costs
-router.get('/operations', getOperations);
+/**
+ * @swagger
+ * /generate/operations:
+ *   get:
+ *     summary: List available image generation operations with token costs
+ *     tags: [Gemini AI]
+ *     security: []
+ *     responses:
+ *       200:
+ *         description: Operations list retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Success'
+ */
+router.get("/operations", asyncHandler(getOperations));
 
-// GET /api/generate/templates - List available templates
-router.get('/templates', getTemplates);
+/**
+ * @swagger
+ * /generate/templates:
+ *   get:
+ *     summary: List available prompt templates
+ *     tags: [Gemini AI]
+ *     security: []
+ *     responses:
+ *       200:
+ *         description: Templates list retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Success'
+ */
+router.get("/templates", asyncHandler(getTemplates));
 
-// POST /api/generate/text-to-image - Generate image from text (100 tokens)
-router.post('/text-to-image', 
+/**
+ * @swagger
+ * /generate/text-to-image:
+ *   post:
+ *     summary: Generate image(s) from text prompt (100 tokens per image)
+ *     tags: [Gemini AI]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - prompt
+ *             properties:
+ *               prompt:
+ *                 type: string
+ *                 example: A serene mountain landscape at sunset
+ *               aspectRatio:
+ *                 type: string
+ *                 example: 16:9
+ *                 description: Image aspect ratio (1:1, 16:9, 9:16, 4:3, 3:4)
+ *               numberOfImages:
+ *                 type: integer
+ *                 minimum: 1
+ *                 maximum: 4
+ *                 default: 1
+ *                 example: 2
+ *                 description: Number of images to generate (1-4)
+ *               projectId:
+ *                 type: string
+ *                 format: uuid
+ *                 example: 550e8400-e29b-41d4-a716-446655440000
+ *                 description: Optional project ID to associate generation
+ *     responses:
+ *       200:
+ *         description: Image(s) generated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Success'
+ *       400:
+ *         description: Validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.post(
+  "/text-to-image",
+  verifyToken,
   validateTextToImage,
   validateRequestWithCleanup,
-  textToImage
+  asyncHandler(textToImage)
 );
 
-// POST /api/generate/edit-simple - Simple image editing (100 tokens)
-router.post('/edit-simple', 
-  uploadSingle,
-  validateSimpleEdit,
-  validateRequestWithCleanup,
-  editSimple
-);
+/**
+ * @swagger
+ * /generate/edit-simple:
+ *   post:
+ *     summary: Simple image editing (100 tokens)
+ *     tags: [Gemini AI]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - image
+ *               - prompt
+ *             properties:
+ *               image:
+ *                 type: string
+ *                 format: binary
+ *               prompt:
+ *                 type: string
+ *                 example: Make the sky more blue
+ *     responses:
+ *       200:
+ *         description: Image edited successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Success'
+ */
+// router.post('/edit-simple',
+//   verifyToken,
+//   uploadSingle,
+//   validateSimpleEdit,
+//   validateRequestWithCleanup,
+//   asyncHandler(editSimple)
+// );
 
-// POST /api/generate/edit-complex - Complex image editing (150 tokens)
-router.post('/edit-complex', 
-  uploadSingle,
-  validateComplexEdit,
-  validateRequestWithCleanup,
-  editComplex
-);
+/**
+ * @swagger
+ * /generate/edit-complex:
+ *   post:
+ *     summary: Complex image editing with mask (150 tokens)
+ *     tags: [Gemini AI]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - image
+ *               - prompt
+ *             properties:
+ *               image:
+ *                 type: string
+ *                 format: binary
+ *               prompt:
+ *                 type: string
+ *                 example: Replace the car with a bicycle
+ *               mask:
+ *                 type: string
+ *                 example: Generated mask coordinates
+ *     responses:
+ *       200:
+ *         description: Image edited successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Success'
+ */
+// router.post('/edit-complex',
+//   verifyToken,
+//   uploadSingle,
+//   validateComplexEdit,
+//   validateRequestWithCleanup,
+//   asyncHandler(editComplex)
+// );
 
-// POST /api/generate/compose - Multi-image composition (200 tokens)
-router.post('/compose', 
-  uploadMultiple,
-  validateComposition,
-  validateRequestWithCleanup,
-  compose
-);
+/**
+ * @swagger
+ * /generate/compose:
+ *   post:
+ *     summary: Multi-image composition (200 tokens)
+ *     tags: [Gemini AI]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - images
+ *               - prompt
+ *             properties:
+ *               images:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *               prompt:
+ *                 type: string
+ *                 example: Combine these images into a collage
+ *     responses:
+ *       200:
+ *         description: Images composed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Success'
+ */
+// router.post('/compose',
+//   verifyToken,
+//   uploadMultiple,
+//   validateComposition,
+//   validateRequestWithCleanup,
+//   asyncHandler(compose)
+// );
 
-// POST /api/generate/style-transfer - Style transfer (150 tokens)
-router.post('/style-transfer', 
-  uploadStyleTransfer,
-  validateStyleTransfer,
-  validateRequestWithCleanup,
-  styleTransfer
-);
+/**
+ * @swagger
+ * /generate/style-transfer:
+ *   post:
+ *     summary: Transfer style from one image to another (150 tokens)
+ *     tags: [Gemini AI]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - contentImage
+ *               - styleImage
+ *             properties:
+ *               contentImage:
+ *                 type: string
+ *                 format: binary
+ *               styleImage:
+ *                 type: string
+ *                 format: binary
+ *               intensity:
+ *                 type: number
+ *                 example: 0.8
+ *     responses:
+ *       200:
+ *         description: Style transfer successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Success'
+ */
+// router.post('/style-transfer',
+//   verifyToken,
+//   uploadStyleTransfer,
+//   validateStyleTransfer,
+//   validateRequestWithCleanup,
+//   asyncHandler(styleTransfer)
+// );
 
-// POST /api/generate/quick-action - Quick actions (100 tokens)
-router.post('/quick-action', 
-  uploadSingle,
-  validateQuickAction,
-  validateRequestWithCleanup,
-  quickAction
-);
+/**
+ * @swagger
+ * /generate/quick-action:
+ *   post:
+ *     summary: Quick image actions like enhance, upscale, remove background (100 tokens)
+ *     tags: [Gemini AI]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - image
+ *               - action
+ *             properties:
+ *               image:
+ *                 type: string
+ *                 format: binary
+ *               action:
+ *                 type: string
+ *                 enum: [enhance, upscale, remove_background, fix_blur]
+ *                 example: enhance
+ *     responses:
+ *       200:
+ *         description: Quick action applied successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Success'
+ */
+// router.post('/quick-action',
+//   verifyToken,
+//   uploadSingle,
+//   validateQuickAction,
+//   validateRequestWithCleanup,
+//   asyncHandler(quickAction)
+// );
 
-// POST /api/generate/text-rendering - Generate images with text (100 tokens)
-router.post('/text-rendering', 
-  validateTextRendering,
-  validateRequestWithCleanup,
-  textRendering
-);
+/**
+ * @swagger
+ * /generate/text-rendering:
+ *   post:
+ *     summary: Generate images with embedded text (100 tokens)
+ *     tags: [Gemini AI]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - text
+ *               - style
+ *             properties:
+ *               text:
+ *                 type: string
+ *                 example: Hello World
+ *               style:
+ *                 type: string
+ *                 example: Modern minimalist design
+ *     responses:
+ *       200:
+ *         description: Text rendering successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Success'
+ */
+// router.post('/text-rendering',
+//   verifyToken,
+//   validateTextRendering,
+//   validateRequestWithCleanup,
+//   asyncHandler(textRendering)
+// );
 
 // Error handling middleware for file upload errors
 router.use((error, req, res, next) => {
   if (error instanceof multer.MulterError) {
-    if (error.code === 'LIMIT_FILE_SIZE') {
+    if (error.code === "LIMIT_FILE_SIZE") {
       return res.status(400).json({
         success: false,
         status: 400,
-        message: `File too large. Maximum size is ${GEMINI_LIMITS.FILE_SIZE_MAX / (1024 * 1024)}MB`,
-        code: GEMINI_ERRORS.IMAGE_TOO_LARGE
+        message: `File too large. Maximum size is ${
+          GEMINI_LIMITS.FILE_SIZE_MAX / (1024 * 1024)
+        }MB`,
+        code: GEMINI_ERRORS.IMAGE_TOO_LARGE,
       });
     }
-    if (error.code === 'LIMIT_FILE_COUNT') {
+    if (error.code === "LIMIT_FILE_COUNT") {
       return res.status(400).json({
         success: false,
         status: 400,
         message: `Too many files. Maximum ${GEMINI_LIMITS.FILE_COUNT_MAX} files allowed`,
-        code: GEMINI_ERRORS.INVALID_FILE_TYPE
+        code: GEMINI_ERRORS.INVALID_FILE_TYPE,
       });
     }
     return res.status(400).json({
       success: false,
       status: 400,
       message: `File upload error: ${error.message}`,
-      code: GEMINI_ERRORS.UPLOAD_FAILED
+      code: GEMINI_ERRORS.UPLOAD_FAILED,
     });
   }
   next(error);
