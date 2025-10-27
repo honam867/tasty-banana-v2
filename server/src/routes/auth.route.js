@@ -32,16 +32,16 @@ const router = express.Router();
  *           schema:
  *             type: object
  *             required:
- *               - username
+ *               - email
  *               - password
  *             properties:
- *               username:
+ *               email:
  *                 type: string
  *                 example: newuser@example.com
  *               password:
  *                 type: string
  *                 format: password
- *                 example: Password123!
+ *                 example: Password@123!
  *     responses:
  *       200:
  *         description: Login successful

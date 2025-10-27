@@ -1,12 +1,21 @@
 import lodash from "lodash";
 const { get } = lodash;
 
+import { db } from "../db/drizzle.js";
+import { imageGenerations, uploads } from "../db/schema.js";
+import { eq, and, inArray, desc, sql } from "drizzle-orm";
 import GeminiService from "../services/gemini/GeminiService.js";
 import PromptTemplates from "../services/gemini/promptTemplates.js";
 import {
   getOperationsWithPricing,
   getOperationTypeByName,
 } from "../services/operationType.service.js";
+import {
+  queueService,
+  QUEUE_NAMES,
+  JOB_TYPES,
+  JOB_PRIORITY,
+} from "../services/queue/index.js";
 import {
   HTTP_STATUS,
   GENERATION_STATUS,
@@ -86,7 +95,9 @@ export const getTemplates = async (req, res, next) => {
 };
 
 /**
- * POST /api/generate/text-to-image - Generate image from text
+ * POST /api/generate/text-to-image - Generate image from text (Background Job)
+ * Returns immediately with job ID. Generation happens in background.
+ * Client should listen to WebSocket for progress updates.
  */
 export const textToImage = async (req, res) => {
   let generationId = null;
@@ -118,14 +129,11 @@ export const textToImage = async (req, res) => {
       .trim()
       .replace(/<script[^>]*>.*?<\/script>/gi, "");
 
-    // Enhance prompt with template
-    const enhancedPrompt = PromptTemplates.textToImage(sanitizedPrompt);
-
-    // Create generation record with operationTypeId
+    // Create generation record with PENDING status (not PROCESSING yet)
     generationId = await createGenerationRecord(
       userId,
       operationType.id,
-      enhancedPrompt,
+      sanitizedPrompt,
       {
         originalPrompt: sanitizedPrompt,
         aspectRatio,
@@ -134,115 +142,60 @@ export const textToImage = async (req, res) => {
       }
     );
 
-    // Update status to processing
-    await updateGenerationRecord(generationId, {
-      status: GENERATION_STATUS.PROCESSING,
-    });
-
-    logger.info(
-      `Starting text-to-image generation for user ${userId}: ${generationId}, numberOfImages: ${numberOfImages}`
-    );
-
-    // Generate all images first (sequentially to avoid overwhelming the API)
-    const generationResults = [];
-    let totalTokensUsed = 0;
-    let totalProcessingTime = 0;
-    let remainingBalance = 0;
-
-    for (let i = 0; i < numberOfImages; i++) {
-      logger.info(`Generating image ${i + 1} of ${numberOfImages}`);
-
-      const result = await GeminiService.textToImage(userId, enhancedPrompt, {
-        aspectRatio,
-        metadata: {
-          originalPrompt: sanitizedPrompt,
-          projectId,
-          generationId,
-          imageNumber: i + 1,
-          totalImages: numberOfImages,
-        },
-      });
-
-      generationResults.push({
-        result: result.result,
-        imageNumber: i + 1,
-      });
-
-      totalTokensUsed += result.tokensUsed;
-      totalProcessingTime += result.processingTimeMs;
-      remainingBalance = result.remainingBalance;
+    // Ensure queue exists (or get existing one)
+    if (!queueService.hasQueue(QUEUE_NAMES.IMAGE_GENERATION)) {
+      queueService.createQueue(QUEUE_NAMES.IMAGE_GENERATION);
     }
 
-    // Upload all generated images concurrently to R2
-    logger.info(`Uploading ${numberOfImages} images concurrently to R2`);
-
-    const imagesToUpload = generationResults.map((genResult) => ({
-      source: genResult.result,
-      userId,
-      purpose: UPLOAD_PURPOSE.GENERATION_OUTPUT,
-      title: `Generated: ${sanitizedPrompt.substring(0, 50)}... (${
-        genResult.imageNumber
-      }/${numberOfImages})`,
-      metadata: {
+    // Add job to queue for background processing
+    const job = await queueService.addJob(
+      QUEUE_NAMES.IMAGE_GENERATION,
+      JOB_TYPES.IMAGE_GENERATION.TEXT_TO_IMAGE,
+      {
+        userId,
         generationId,
-        aspectRatio,
-        imageNumber: genResult.imageNumber,
-      },
-    }));
-
-    const uploadRecords = await saveMultipleToStorage(imagesToUpload);
-
-    // Build response with upload results
-    const generatedImages = uploadRecords.map((uploadRecord, index) => ({
-      imageUrl: uploadRecord.publicUrl,
-      imageId: uploadRecord.id,
-      mimeType: generationResults[index].result.mimeType,
-      imageSize: generationResults[index].result.size,
-    }));
-
-    // Final generation update
-    await updateGenerationRecord(generationId, {
-      status: GENERATION_STATUS.COMPLETED,
-      outputImageId: generatedImages[0].imageId, // First image as primary
-      tokensUsed: totalTokensUsed,
-      processingTimeMs: totalProcessingTime,
-      aiMetadata: JSON.stringify({
-        aspectRatio,
-        numberOfImages,
         prompt: sanitizedPrompt,
-        enhancedPrompt,
-        imageIds: generatedImages.map((img) => img.imageId),
-      }),
-    });
-
-    logger.info(
-      `Text-to-image generation completed for user ${userId}: ${generationId}, generated ${numberOfImages} images`
+        numberOfImages,
+        aspectRatio,
+        projectId,
+      },
+      {
+        priority: JOB_PRIORITY.NORMAL,
+        attempts: 3,
+        backoff: {
+          type: "exponential",
+          delay: 2000,
+        },
+      }
     );
 
-    // Enhanced response
-    const enhancedResult = {
-      generationId,
-      images: generatedImages,
-      numberOfImages,
-      metadata: {
-        prompt: sanitizedPrompt,
-        aspectRatio,
-      },
-      tokens: {
-        used: totalTokensUsed,
-        remaining: remainingBalance,
-      },
-      processing: {
-        timeMs: totalProcessingTime,
-        status: GENERATION_STATUS.COMPLETED,
-      },
-      createdAt: new Date().toISOString(),
-    };
+    logger.info(
+      `Text-to-image job queued for user ${userId}: job ${job.id}, generation ${generationId}, numberOfImages: ${numberOfImages}`
+    );
 
+    // Return immediately with 202 Accepted
     sendSuccess(
       res,
-      enhancedResult,
-      `${numberOfImages} image(s) generated successfully`
+      {
+        jobId: job.id,
+        generationId,
+        status: GENERATION_STATUS.PENDING,
+        message: "Image generation job queued successfully. Listen to WebSocket for progress updates.",
+        numberOfImages,
+        metadata: {
+          prompt: sanitizedPrompt,
+          aspectRatio,
+          projectId,
+        },
+        websocketEvents: {
+          progress: "generation_progress",
+          completed: "generation_completed",
+          failed: "generation_failed",
+        },
+        statusEndpoint: `/api/generate/queue/${generationId}`,
+      },
+      "Job queued successfully",
+      202 // HTTP 202 Accepted
     );
   } catch (error) {
     // Update generation record with error
@@ -253,9 +206,181 @@ export const textToImage = async (req, res) => {
       });
     }
 
-    logger.error("Text-to-image generation error:", error);
+    logger.error("Text-to-image job queue error:", error);
     const geminiError = handleGeminiError(error);
     throwError(geminiError.message, geminiError.status);
+  }
+};
+
+/**
+ * GET /api/generate/queue/:generationId - Get generation status
+ * Returns the current status and progress of a generation job
+ */
+export const getGenerationStatus = async (req, res, next) => {
+  try {
+    const userId = get(req, "user.id");
+    const { generationId } = req.params;
+
+    if (!generationId) {
+      throwError("Generation ID is required", HTTP_STATUS.BAD_REQUEST);
+    }
+
+    // Fetch generation record from database
+    const generation = await db
+      .select()
+      .from(imageGenerations)
+      .where(
+        and(
+          eq(imageGenerations.id, generationId),
+          eq(imageGenerations.userId, userId) // Authorization check
+        )
+      )
+      .limit(1);
+
+    if (!generation.length) {
+      throwError("Generation not found or access denied", HTTP_STATUS.NOT_FOUND);
+    }
+
+    const generationData = generation[0];
+
+    // Try to get job status from queue if still processing
+    let jobStatus = null;
+    let progress = 0;
+    
+    if (generationData.status === GENERATION_STATUS.PENDING || 
+        generationData.status === GENERATION_STATUS.PROCESSING) {
+      try {
+        // Note: We'd need to store jobId in the generation record to fetch this
+        // For now, we'll just use the database status
+        progress = generationData.status === GENERATION_STATUS.PENDING ? 0 : 50;
+      } catch (error) {
+        logger.warn("Could not fetch job status from queue:", error);
+      }
+    } else if (generationData.status === GENERATION_STATUS.COMPLETED) {
+      progress = 100;
+    }
+
+    // Parse metadata and AI metadata
+    const metadata = generationData.metadata ? JSON.parse(generationData.metadata) : {};
+    const aiMetadata = generationData.aiMetadata ? JSON.parse(generationData.aiMetadata) : {};
+
+    // Build response
+    const response = {
+      generationId: generationData.id,
+      status: generationData.status,
+      progress,
+      createdAt: generationData.createdAt,
+      completedAt: generationData.completedAt,
+      metadata: {
+        prompt: metadata.originalPrompt,
+        numberOfImages: metadata.numberOfImages || 1,
+        aspectRatio: metadata.aspectRatio || "1:1",
+        projectId: metadata.projectId,
+      },
+      tokensUsed: generationData.tokensUsed,
+      processingTimeMs: generationData.processingTimeMs,
+    };
+
+    // Add images if completed
+    if (generationData.status === GENERATION_STATUS.COMPLETED && aiMetadata.imageIds) {
+      // Fetch upload records for the images
+      const imageIds = aiMetadata.imageIds;
+      const images = await db
+        .select()
+        .from(uploads)
+        .where(inArray(uploads.id, imageIds));
+      
+      response.images = images.map(img => ({
+        imageId: img.id,
+        imageUrl: img.publicUrl,
+        mimeType: img.mimeType,
+        sizeBytes: img.sizeBytes,
+      }));
+    }
+
+    // Add error if failed
+    if (generationData.status === GENERATION_STATUS.FAILED) {
+      response.error = generationData.errorMessage;
+    }
+
+    sendSuccess(res, response, "Generation status retrieved successfully");
+  } catch (error) {
+    logger.error("Get generation status error:", error);
+    next(error);
+  }
+};
+
+/**
+ * GET /api/generate/my-queue - Get user's active generation queue
+ * Returns all pending and processing generations for the current user
+ */
+export const getUserQueue = async (req, res, next) => {
+  try {
+    const userId = get(req, "user.id");
+    const limit = Math.min(parseInt(get(req.query, "limit", "20"), 10), 100);
+    const offset = parseInt(get(req.query, "offset", "0"), 10);
+
+    // Fetch active generations (pending or processing)
+    const activeGenerations = await db
+      .select()
+      .from(imageGenerations)
+      .where(
+        and(
+          eq(imageGenerations.userId, userId),
+          inArray(imageGenerations.status, [
+            GENERATION_STATUS.PENDING,
+            GENERATION_STATUS.PROCESSING,
+          ])
+        )
+      )
+      .orderBy(desc(imageGenerations.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    // Format response
+    const queue = activeGenerations.map((gen) => {
+      const metadata = gen.metadata ? JSON.parse(gen.metadata) : {};
+      
+      return {
+        generationId: gen.id,
+        status: gen.status,
+        progress: gen.status === GENERATION_STATUS.PENDING ? 0 : 50,
+        createdAt: gen.createdAt,
+        metadata: {
+          prompt: metadata.originalPrompt || "Image generation",
+          numberOfImages: metadata.numberOfImages || 1,
+          aspectRatio: metadata.aspectRatio || "1:1",
+          projectId: metadata.projectId,
+        },
+      };
+    });
+
+    // Get total count
+    const totalCount = await db
+      .select({ count: sql`count(*)` })
+      .from(imageGenerations)
+      .where(
+        and(
+          eq(imageGenerations.userId, userId),
+          inArray(imageGenerations.status, [
+            GENERATION_STATUS.PENDING,
+            GENERATION_STATUS.PROCESSING,
+          ])
+        )
+      );
+
+    sendSuccess(res, {
+      queue,
+      pagination: {
+        total: parseInt(totalCount[0].count, 10),
+        limit,
+        offset,
+        hasMore: offset + limit < parseInt(totalCount[0].count, 10),
+      },
+    }, "User queue retrieved successfully");
+  } catch (error) {
+    logger.error("Get user queue error:", error);
+    next(error);
   }
 };
 

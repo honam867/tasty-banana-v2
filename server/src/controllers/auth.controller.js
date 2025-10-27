@@ -19,19 +19,19 @@ import TokenService from "../services/tokens/TokenService.js";
 
 //[POST] login
 export const login = async (req, res) => {
-  const { username, password, remember } = req.body;
+  const { email, password, remember } = req.body;
   try {
     // Find user by username or email
-    const user = await findUserByEmail(username);
+    const user = await findUserByEmail(email);
 
     if (!user) {
-      return sendWarning(res, "Invalid username/email or password");
+      return sendWarning(res, "Invalid email");
     } else {
       const decryptedPassword = decryptPassword(user.password);
 
       //check password
       if (decryptedPassword !== password) {
-        return sendWarning(res, "Invalid username/email or password");
+        return sendWarning(res, "Invalid password");
       }
 
       //check user inactive
@@ -88,17 +88,26 @@ export const register = async (req, res) => {
 
     // Grant signup bonus tokens (1,000 tokens)
     try {
-      console.log(`🎁 Attempting to grant signup bonus to user ${newUser.id}...`);
-      const result = await TokenService.credit(newUser.id, TOKEN_USAGE.DEFAULT, {
-        reasonCode: TOKEN_REASON_CODES.SIGNUP_BONUS,
-        idempotencyKey: `signup:${newUser.id}`,
-        actor: { type: TOKEN_ACTOR_TYPES.SYSTEM },
-        metadata: {
-          email: newUser.email,
-          signupDate: new Date().toISOString(),
-        },
-      });
-      console.log(`✅ Granted ${TOKEN_USAGE.DEFAULT} signup bonus tokens to user ${newUser.id}`, result);
+      console.log(
+        `🎁 Attempting to grant signup bonus to user ${newUser.id}...`
+      );
+      const result = await TokenService.credit(
+        newUser.id,
+        TOKEN_USAGE.DEFAULT,
+        {
+          reasonCode: TOKEN_REASON_CODES.SIGNUP_BONUS,
+          idempotencyKey: `signup:${newUser.id}`,
+          actor: { type: TOKEN_ACTOR_TYPES.SYSTEM },
+          metadata: {
+            email: newUser.email,
+            signupDate: new Date().toISOString(),
+          },
+        }
+      );
+      console.log(
+        `✅ Granted ${TOKEN_USAGE.DEFAULT} signup bonus tokens to user ${newUser.id}`,
+        result
+      );
     } catch (tokenError) {
       // Log error but don't fail registration
       console.error("❌ Failed to grant signup bonus:", tokenError);

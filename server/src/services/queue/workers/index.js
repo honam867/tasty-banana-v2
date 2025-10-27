@@ -1,17 +1,38 @@
 import workerService from "../WorkerService.js";
 import logger from "../../../config/logger.js";
+import { QUEUE_NAMES, JOB_TYPES } from "../jobs/index.js";
+import { processTextToImage } from "../processors/imageGeneration.processor.js";
 
 /**
  * Worker Initialization
  * Central place to register all processors and start workers
- * 
- * Add your worker registrations here when you're ready to use them.
- * 
- * Example:
- *   import { myProcessor } from "../processors/myProcessor.js";
- *   workerService.registerProcessor(QUEUE_NAME, JOB_TYPE, myProcessor);
- *   workerService.createWorker(QUEUE_NAME, { concurrency: 3 });
  */
+
+/**
+ * Register image generation workers
+ */
+function registerImageGenerationWorkers() {
+  logger.info("Registering image generation workers...");
+  
+  // Register text-to-image processor
+  workerService.registerProcessor(
+    QUEUE_NAMES.IMAGE_GENERATION,
+    JOB_TYPES.IMAGE_GENERATION.TEXT_TO_IMAGE,
+    processTextToImage
+  );
+  
+  // Create worker for image generation queue
+  // Concurrency: 3 (process 3 jobs simultaneously)
+  workerService.createWorker(QUEUE_NAMES.IMAGE_GENERATION, {
+    concurrency: 3,
+    limiter: {
+      max: 10, // Max 10 jobs
+      duration: 1000, // per 1 second
+    },
+  });
+  
+  logger.info("Image generation workers registered successfully");
+}
 
 /**
  * Initialize all workers
@@ -21,11 +42,10 @@ export async function initializeWorkers() {
   try {
     logger.info("=== Initializing Queue Workers ===");
 
-    // TODO: Register your workers here when needed
-    // Example:
-    // registerYourWorkers();
+    // Register image generation workers
+    registerImageGenerationWorkers();
 
-    logger.info("=== Queue Workers Ready (No workers registered yet) ===");
+    logger.info("=== Queue Workers Ready ===");
   } catch (error) {
     logger.error("Failed to initialize workers:", error);
     throw error;

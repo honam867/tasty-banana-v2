@@ -217,8 +217,11 @@ export const imageGenerations = pgTable(
     // Timing
     processingTimeMs: integer("processing_time_ms"),
 
+    // Request metadata (input parameters like aspectRatio, numberOfImages, etc.)
+    metadata: text("metadata"), // JSON string for request parameters
+    
     // AI response metadata
-    aiMetadata: text("ai_metadata"), // JSON string
+    aiMetadata: text("ai_metadata"), // JSON string for AI response data
 
     createdAt: timestamp("created_at").notNull().defaultNow(),
     completedAt: timestamp("completed_at"),

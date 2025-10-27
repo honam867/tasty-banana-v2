@@ -4,6 +4,8 @@ import {
   getOperations,
   getTemplates,
   textToImage,
+  getGenerationStatus,
+  getUserQueue,
   // editSimple,
   // editComplex,
   // compose,
@@ -103,12 +105,24 @@ router.get("/templates", asyncHandler(getTemplates));
  *                 example: 550e8400-e29b-41d4-a716-446655440000
  *                 description: Optional project ID to associate generation
  *     responses:
- *       200:
- *         description: Image(s) generated successfully
+ *       202:
+ *         description: Image generation job queued successfully. Listen to WebSocket for progress updates.
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Success'
+ *             example:
+ *               success: true
+ *               data:
+ *                 jobId: "12345"
+ *                 generationId: "550e8400-e29b-41d4-a716-446655440000"
+ *                 status: "pending"
+ *                 message: "Image generation job queued successfully. Listen to WebSocket for progress updates."
+ *                 websocketEvents:
+ *                   progress: "generation_progress"
+ *                   completed: "generation_completed"
+ *                   failed: "generation_failed"
+ *                 statusEndpoint: "/api/generate/queue/550e8400-e29b-41d4-a716-446655440000"
  *       400:
  *         description: Validation error
  *         content:
@@ -122,6 +136,78 @@ router.post(
   validateTextToImage,
   validateRequestWithCleanup,
   asyncHandler(textToImage)
+);
+
+/**
+ * @swagger
+ * /generate/queue/{generationId}:
+ *   get:
+ *     summary: Get generation status and progress
+ *     tags: [Gemini AI]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: generationId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Generation ID
+ *     responses:
+ *       200:
+ *         description: Generation status retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Success'
+ *       404:
+ *         description: Generation not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.get(
+  "/queue/:generationId",
+  verifyToken,
+  asyncHandler(getGenerationStatus)
+);
+
+/**
+ * @swagger
+ * /generate/my-queue:
+ *   get:
+ *     summary: Get user's active generation queue
+ *     tags: [Gemini AI]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *           maximum: 100
+ *         description: Maximum number of items to return
+ *       - in: query
+ *         name: offset
+ *         schema:
+ *           type: integer
+ *           default: 0
+ *         description: Pagination offset
+ *     responses:
+ *       200:
+ *         description: User queue retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Success'
+ */
+router.get(
+  "/my-queue",
+  verifyToken,
+  asyncHandler(getUserQueue)
 );
 
 /**

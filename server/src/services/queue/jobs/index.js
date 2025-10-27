@@ -7,30 +7,27 @@
 
 /**
  * Queue Names - Define your queues here
- * 
- * Example:
- * export const QUEUE_NAMES = {
- *   EMAIL: "email",
- *   FILE_PROCESSING: "file-processing",
- * };
  */
 export const QUEUE_NAMES = {
-  // Add your queue names here
+  IMAGE_GENERATION: "image-generation",
+  IMAGE_REFERENCE: "image-reference", // For future use
 };
 
 /**
  * Job Types - Define specific job types within queues
- * 
- * Example:
- * export const JOB_TYPES = {
- *   EMAIL: {
- *     SEND_WELCOME: "send-welcome-email",
- *     SEND_VERIFICATION: "send-verification-email",
- *   },
- * };
  */
 export const JOB_TYPES = {
-  // Add your job types here
+  IMAGE_GENERATION: {
+    TEXT_TO_IMAGE: "text-to-image",
+    IMAGE_EDIT_SIMPLE: "image-edit-simple",
+    IMAGE_EDIT_COMPLEX: "image-edit-complex",
+    STYLE_TRANSFER: "style-transfer",
+    COMPOSE: "compose",
+    TEXT_RENDERING: "text-rendering",
+  },
+  IMAGE_REFERENCE: {
+    PROCESS: "process-reference", // For future use
+  },
 };
 
 /**

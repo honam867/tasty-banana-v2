@@ -21,6 +21,11 @@ export const WS_EVENTS = {
   JOB_PROGRESS: "job_progress",
   JOB_COMPLETED: "job_completed",
   JOB_FAILED: "job_failed",
+  
+  // Image Generation specific events
+  GENERATION_PROGRESS: "generation_progress",
+  GENERATION_COMPLETED: "generation_completed",
+  GENERATION_FAILED: "generation_failed",
 };
 
 export const WS_ROOMS = {
