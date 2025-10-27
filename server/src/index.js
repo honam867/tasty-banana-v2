@@ -81,13 +81,28 @@ async function gracefulShutdown(signal) {
   logger.info(`${signal} received, shutting down gracefully...`);
   
   try {
+    // Close WebSocket connections first
     await websocketService.shutdown();
-    await shutdownWorkers();
-    await queueService.closeAll();
-    await redisManager.disconnect();
+    logger.info("WebSocket service shut down");
     
-    httpServer.close(() => {
-      logger.info("HTTP server closed");
+    // Stop queue workers
+    await shutdownWorkers();
+    logger.info("Queue workers shut down");
+    
+    // Close all queues
+    await queueService.closeAll();
+    logger.info("Queue service closed");
+    
+    // Disconnect Redis
+    await redisManager.disconnect();
+    logger.info("Redis disconnected");
+    
+    // Close HTTP server (wait for it to finish!)
+    await new Promise((resolve) => {
+      httpServer.close(() => {
+        logger.info("HTTP server closed");
+        resolve();
+      });
     });
     
     logger.info("Graceful shutdown completed");
@@ -100,3 +115,9 @@ async function gracefulShutdown(signal) {
 
 process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
 process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+
+// Handle nodemon restarts (SIGUSR2)
+process.once("SIGUSR2", async () => {
+  logger.info("Nodemon restart signal received");
+  await gracefulShutdown("SIGUSR2");
+});

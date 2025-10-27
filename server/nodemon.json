@@ -1,0 +1,13 @@
+{
+  "watch": ["src"],
+  "ext": "js,json",
+  "ignore": ["src/logs/*", "node_modules", "tests"],
+  "delay": "3500",
+  "env": {
+    "NODE_ENV": "development"
+  },
+  "verbose": false,
+  "events": {
+    "restart": "echo [nodemon] Restarting server..."
+  }
+}
