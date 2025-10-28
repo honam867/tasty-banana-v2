@@ -2,7 +2,7 @@ import express from "express";
 import multer from "multer";
 import {
   getOperations,
-  getTemplates,
+  // getTemplates,
   textToImage,
   getGenerationStatus,
   getUserQueue,
@@ -23,11 +23,10 @@ import {
   // validateTextRendering,
   validateRequestWithCleanup,
 } from "../middlewares/validators.js";
-import {
-  // uploadSingle,
-  // uploadMultiple,
-  // uploadStyleTransfer,
-} from "../middlewares/upload.js";
+import // uploadSingle,
+// uploadMultiple,
+// uploadStyleTransfer,
+"../middlewares/upload.js";
 import { verifyToken } from "../middlewares/tokenHandler.js";
 import { asyncHandler } from "../middlewares/errorHandler.js";
 import { GEMINI_LIMITS, GEMINI_ERRORS } from "../utils/constant.js";
@@ -51,22 +50,22 @@ const router = express.Router();
  */
 router.get("/operations", asyncHandler(getOperations));
 
-/**
- * @swagger
- * /generate/templates:
- *   get:
- *     summary: List available prompt templates
- *     tags: [Gemini AI]
- *     security: []
- *     responses:
- *       200:
- *         description: Templates list retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Success'
- */
-router.get("/templates", asyncHandler(getTemplates));
+// /**
+//  * @swagger
+//  * /generate/templates:
+//  *   get:
+//  *     summary: List available prompt templates
+//  *     tags: [Gemini AI]
+//  *     security: []
+//  *     responses:
+//  *       200:
+//  *         description: Templates list retrieved successfully
+//  *         content:
+//  *           application/json:
+//  *             schema:
+//  *               $ref: '#/components/schemas/Success'
+//  */
+// router.get("/templates", asyncHandler(getTemplates));
 
 /**
  * @swagger
@@ -104,6 +103,11 @@ router.get("/templates", asyncHandler(getTemplates));
  *                 format: uuid
  *                 example: 550e8400-e29b-41d4-a716-446655440000
  *                 description: Optional project ID to associate generation
+ *               promptTemplateId:
+ *                 type: string
+ *                 format: uuid
+ *                 example: 660e8400-e29b-41d4-a716-446655440000
+ *                 description: Optional prompt template ID for style enhancement (from /api/prompt-templates)
  *     responses:
  *       202:
  *         description: Image generation job queued successfully. Listen to WebSocket for progress updates.
@@ -204,11 +208,7 @@ router.get(
  *             schema:
  *               $ref: '#/components/schemas/Success'
  */
-router.get(
-  "/my-queue",
-  verifyToken,
-  asyncHandler(getUserQueue)
-);
+router.get("/my-queue", verifyToken, asyncHandler(getUserQueue));
 
 /**
  * @swagger

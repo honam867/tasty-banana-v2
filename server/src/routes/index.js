@@ -5,6 +5,9 @@ import uploads from "./uploads.route.js";
 import queue from "./queue.route.js";
 import tokens from "./tokens.route.js";
 import gemini from "./gemini.route.js";
+import promptTemplate from "./promptTemplate.route.js";
+import styleLibrary from "./styleLibrary.route.js";
+import hint from "./hint.route.js";
 import { ROUTES } from "../utils/routes.js";
 
 function router(app) {
@@ -20,6 +23,11 @@ function router(app) {
   app.use(`/api${ROUTES.TOKENS}`, tokens);
   app.use("/api/generate", gemini);
   app.use("/api/queue", queue);
+  
+  // Prompt Template Management Routes
+  app.use("/api/prompt-templates", promptTemplate);
+  app.use("/api/style-library", styleLibrary);
+  app.use("/api/hints", hint);
 }
 
 export default router;

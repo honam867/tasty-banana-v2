@@ -55,44 +55,44 @@ export const getOperations = async (req, res, next) => {
 /**
  * GET /api/generate/templates - List available templates
  */
-export const getTemplates = async (req, res, next) => {
-  try {
-    const templates = {
-      simple: {
-        remove_background: "Remove background, make it pure white",
-        flip_horizontal: "Flip horizontally (mirror)",
-        flip_vertical: "Flip vertically",
-        enhance_lighting: "Brighten and improve lighting",
-        add_shadows: "Add soft shadows underneath",
-        center_product: "Center product in frame",
-        sharpen_details: "Sharpen for clarity",
-        enhance_colors: "Make colors more vibrant",
-      },
-      complex: {
-        complete_transformation:
-          "Full image transformation with professional quality",
-        background_scene_change: "Change background while maintaining lighting",
-        lighting_enhancement: "Professional lighting corrections",
-        color_correction: "Color balance and enhancement",
-      },
-      composition: {
-        product_lifestyle: "Products in natural lifestyle settings",
-        product_grouping: "Professional group shots of multiple products",
-        scene_creation: "Custom scenes with product context",
-      },
-      styleTransfer: {
-        artistic_style: "Apply artistic style while maintaining clarity",
-        mood_transfer: "Transfer mood and atmosphere",
-        aesthetic_enhancement: "Enhance with aesthetic qualities",
-      },
-    };
+// export const getTemplates = async (req, res, next) => {
+//   try {
+//     const templates = {
+//       simple: {
+//         remove_background: "Remove background, make it pure white",
+//         flip_horizontal: "Flip horizontally (mirror)",
+//         flip_vertical: "Flip vertically",
+//         enhance_lighting: "Brighten and improve lighting",
+//         add_shadows: "Add soft shadows underneath",
+//         center_product: "Center product in frame",
+//         sharpen_details: "Sharpen for clarity",
+//         enhance_colors: "Make colors more vibrant",
+//       },
+//       complex: {
+//         complete_transformation:
+//           "Full image transformation with professional quality",
+//         background_scene_change: "Change background while maintaining lighting",
+//         lighting_enhancement: "Professional lighting corrections",
+//         color_correction: "Color balance and enhancement",
+//       },
+//       composition: {
+//         product_lifestyle: "Products in natural lifestyle settings",
+//         product_grouping: "Professional group shots of multiple products",
+//         scene_creation: "Custom scenes with product context",
+//       },
+//       styleTransfer: {
+//         artistic_style: "Apply artistic style while maintaining clarity",
+//         mood_transfer: "Transfer mood and atmosphere",
+//         aesthetic_enhancement: "Enhance with aesthetic qualities",
+//       },
+//     };
 
-    sendSuccess(res, templates, "Templates retrieved successfully");
-  } catch (error) {
-    logger.error("Get templates error:", error);
-    next(error);
-  }
-};
+//     sendSuccess(res, templates, "Templates retrieved successfully");
+//   } catch (error) {
+//     logger.error("Get templates error:", error);
+//     next(error);
+//   }
+// };
 
 /**
  * POST /api/generate/text-to-image - Generate image from text (Background Job)
@@ -109,6 +109,7 @@ export const textToImage = async (req, res) => {
     const aspectRatio = get(req.body, "aspectRatio", "1:1");
     const numberOfImages = parseInt(get(req.body, "numberOfImages", "1"), 10);
     const projectId = get(req.body, "projectId");
+    const promptTemplateId = get(req.body, "promptTemplateId"); // Optional style enhancement
 
     if (!prompt) {
       throwError("Prompt is required", HTTP_STATUS.BAD_REQUEST);
@@ -158,6 +159,7 @@ export const textToImage = async (req, res) => {
         numberOfImages,
         aspectRatio,
         projectId,
+        promptTemplateId, // Pass template ID to processor
       },
       {
         priority: JOB_PRIORITY.NORMAL,
@@ -180,7 +182,8 @@ export const textToImage = async (req, res) => {
         jobId: job.id,
         generationId,
         status: GENERATION_STATUS.PENDING,
-        message: "Image generation job queued successfully. Listen to WebSocket for progress updates.",
+        message:
+          "Image generation job queued successfully. Listen to WebSocket for progress updates.",
         numberOfImages,
         metadata: {
           prompt: sanitizedPrompt,
@@ -238,7 +241,10 @@ export const getGenerationStatus = async (req, res, next) => {
       .limit(1);
 
     if (!generation.length) {
-      throwError("Generation not found or access denied", HTTP_STATUS.NOT_FOUND);
+      throwError(
+        "Generation not found or access denied",
+        HTTP_STATUS.NOT_FOUND
+      );
     }
 
     const generationData = generation[0];
@@ -246,9 +252,11 @@ export const getGenerationStatus = async (req, res, next) => {
     // Try to get job status from queue if still processing
     let jobStatus = null;
     let progress = 0;
-    
-    if (generationData.status === GENERATION_STATUS.PENDING || 
-        generationData.status === GENERATION_STATUS.PROCESSING) {
+
+    if (
+      generationData.status === GENERATION_STATUS.PENDING ||
+      generationData.status === GENERATION_STATUS.PROCESSING
+    ) {
       try {
         // Note: We'd need to store jobId in the generation record to fetch this
         // For now, we'll just use the database status
@@ -261,8 +269,12 @@ export const getGenerationStatus = async (req, res, next) => {
     }
 
     // Parse metadata and AI metadata
-    const metadata = generationData.metadata ? JSON.parse(generationData.metadata) : {};
-    const aiMetadata = generationData.aiMetadata ? JSON.parse(generationData.aiMetadata) : {};
+    const metadata = generationData.metadata
+      ? JSON.parse(generationData.metadata)
+      : {};
+    const aiMetadata = generationData.aiMetadata
+      ? JSON.parse(generationData.aiMetadata)
+      : {};
 
     // Build response
     const response = {
@@ -282,15 +294,18 @@ export const getGenerationStatus = async (req, res, next) => {
     };
 
     // Add images if completed
-    if (generationData.status === GENERATION_STATUS.COMPLETED && aiMetadata.imageIds) {
+    if (
+      generationData.status === GENERATION_STATUS.COMPLETED &&
+      aiMetadata.imageIds
+    ) {
       // Fetch upload records for the images
       const imageIds = aiMetadata.imageIds;
       const images = await db
         .select()
         .from(uploads)
         .where(inArray(uploads.id, imageIds));
-      
-      response.images = images.map(img => ({
+
+      response.images = images.map((img) => ({
         imageId: img.id,
         imageUrl: img.publicUrl,
         mimeType: img.mimeType,
@@ -340,7 +355,7 @@ export const getUserQueue = async (req, res, next) => {
     // Format response
     const queue = activeGenerations.map((gen) => {
       const metadata = gen.metadata ? JSON.parse(gen.metadata) : {};
-      
+
       return {
         generationId: gen.id,
         status: gen.status,
@@ -369,15 +384,19 @@ export const getUserQueue = async (req, res, next) => {
         )
       );
 
-    sendSuccess(res, {
-      queue,
-      pagination: {
-        total: parseInt(totalCount[0].count, 10),
-        limit,
-        offset,
-        hasMore: offset + limit < parseInt(totalCount[0].count, 10),
+    sendSuccess(
+      res,
+      {
+        queue,
+        pagination: {
+          total: parseInt(totalCount[0].count, 10),
+          limit,
+          offset,
+          hasMore: offset + limit < parseInt(totalCount[0].count, 10),
+        },
       },
-    }, "User queue retrieved successfully");
+      "User queue retrieved successfully"
+    );
   } catch (error) {
     logger.error("Get user queue error:", error);
     next(error);
