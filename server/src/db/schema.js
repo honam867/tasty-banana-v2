@@ -294,3 +294,82 @@ export const operationType = pgTable("operation_type", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
+
+/**
+ * Prompt Templates Table Schema
+ * Stores reusable prompt templates for image generation enhancement
+ */
+export const promptTemplates = pgTable(
+  "prompt_templates",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+
+    name: varchar("name", { length: 255 }).notNull(),
+    prompt: text("prompt").notNull(),
+    previewUrl: text("preview_url"),
+
+    isActive: boolean("is_active").notNull().default(true),
+
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => ({
+    nameIdx: index("idx_prompt_templates_name").on(table.name),
+    isActiveIdx: index("idx_prompt_templates_is_active").on(table.isActive),
+  })
+);
+
+/**
+ * Style Library Table Schema
+ * Groups prompt templates into style categories (Fun, Realistic, etc.)
+ */
+export const styleLibrary = pgTable(
+  "style_library",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+
+    name: varchar("name", { length: 255 }).notNull().unique(),
+    description: text("description"),
+
+    // Array of prompt template IDs
+    promptTemplateIds: jsonb("prompt_template_ids").notNull().default([]),
+
+    isActive: boolean("is_active").notNull().default(true),
+
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => ({
+    nameIdx: index("idx_style_library_name").on(table.name),
+    isActiveIdx: index("idx_style_library_is_active").on(table.isActive),
+  })
+);
+
+/**
+ * Hints Table Schema
+ * Provides prompt suggestions/hints for users who need inspiration
+ */
+export const hints = pgTable(
+  "hints",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+
+    name: varchar("name", { length: 255 }).notNull(),
+    type: varchar("type", { length: 50 }).notNull(),
+    // 'object', 'scene', 'style', 'mood', etc.
+
+    description: text("description"),
+
+    // Array of prompt template IDs
+    promptTemplateIds: jsonb("prompt_template_ids").notNull().default([]),
+
+    isActive: boolean("is_active").notNull().default(true),
+
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => ({
+    typeIdx: index("idx_hints_type").on(table.type),
+    isActiveIdx: index("idx_hints_is_active").on(table.isActive),
+  })
+);
