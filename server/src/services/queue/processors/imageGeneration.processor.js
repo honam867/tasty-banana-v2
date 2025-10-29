@@ -33,6 +33,7 @@ export async function processTextToImage(job) {
     aspectRatio = "1:1",
     projectId,
     promptTemplateId, // Optional: database template ID for style enhancement
+    operationTypeTokenCost, // Token cost from database (operationType.tokenCost)
   } = job.data;
 
   logger.info(
@@ -60,7 +61,7 @@ export async function processTextToImage(job) {
 
     // Step 2a: Fetch and apply database template if promptTemplateId is provided
     let enhancedPrompt = sanitizedPrompt;
-    
+
     if (promptTemplateId) {
       try {
         const template = await PromptTemplateService.getById(promptTemplateId);
@@ -105,16 +106,21 @@ export async function processTextToImage(job) {
     for (let i = 0; i < numberOfImages; i++) {
       logger.info(`Generating image ${i + 1} of ${numberOfImages}`);
 
-      const result = await GeminiService.textToImage(userId, enhancedPrompt, {
-        aspectRatio,
-        metadata: {
-          originalPrompt: sanitizedPrompt,
-          projectId,
-          generationId,
-          imageNumber: i + 1,
-          totalImages: numberOfImages,
-        },
-      });
+      const result = await GeminiService.textToImage(
+        userId,
+        operationTypeTokenCost,
+        enhancedPrompt,
+        {
+          aspectRatio,
+          metadata: {
+            originalPrompt: sanitizedPrompt,
+            projectId,
+            generationId,
+            imageNumber: i + 1,
+            totalImages: numberOfImages,
+          },
+        }
+      );
 
       generationResults.push({
         result: result.result,

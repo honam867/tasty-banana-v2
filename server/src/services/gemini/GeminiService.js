@@ -1,7 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import fs from "fs";
 import TokenService from "../tokens/TokenService.js";
-import { GEMINI_CONFIG, TOKEN_COSTS, IMAGE_OPERATION_TYPES } from "../../utils/constant.js";
+import { GEMINI_CONFIG, IMAGE_OPERATION_TYPES } from "../../utils/constant.js";
 
 /**
  * Gemini Flash 2.5 Image Service
@@ -17,9 +17,6 @@ class GeminiService {
     this.genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY);
     this.model = this.genAI.getGenerativeModel({ model: modelName });
 
-    // Operation token costs (loaded from constants)
-    this.TOKEN_COSTS = TOKEN_COSTS;
-
     // Rate limiting: 15 requests per minute for free tier
     this.rateLimitWindow = GEMINI_CONFIG.RATE_LIMIT_WINDOW_MS;
     this.maxRequestsPerWindow = GEMINI_CONFIG.MAX_REQUESTS_PER_WINDOW;
@@ -29,10 +26,9 @@ class GeminiService {
   /**
    * Execute an operation with token management and retry logic
    */
-  async executeWithTokens(userId, operationType, operationFn, options = {}) {
-    const tokenCost = this.TOKEN_COSTS[operationType];
-    if (!tokenCost) {
-      throw new Error(`Unknown operation type: ${operationType}`);
+  async executeWithTokens(userId, tokenCost, operationTypeName, operationFn, options = {}) {
+    if (!tokenCost || tokenCost <= 0) {
+      throw new Error(`Invalid token cost for operation: ${operationTypeName}`);
     }
 
     // Check rate limit
@@ -50,7 +46,7 @@ class GeminiService {
       const startTime = Date.now();
 
       // Execute the operation with retry logic
-      const result = await this.executeWithRetry(operationFn, operationType);
+      const result = await this.executeWithRetry(operationFn, operationTypeName);
 
       const processingTime = Date.now() - startTime;
 
@@ -58,7 +54,7 @@ class GeminiService {
       const newBalance = await TokenService.debit(userId, tokenCost, {
         reasonCode: "spend_generation",
         metadata: {
-          operationType,
+          operationType: operationTypeName,
           generationId: options.metadata?.generationId,
           processingTimeMs: processingTime,
           ...options.metadata,
@@ -111,11 +107,12 @@ class GeminiService {
   }
 
   /**
-   * Generate image from text prompt (100 tokens)
+   * Generate image from text prompt
    */
-  async textToImage(userId, prompt, options = {}) {
+  async textToImage(userId, tokenCost, prompt, options = {}) {
     return this.executeWithTokens(
       userId,
+      tokenCost,
       IMAGE_OPERATION_TYPES.TEXT_TO_IMAGE,
       async () => {
         const generationConfig = this.buildGenerationConfig(options);
@@ -132,11 +129,12 @@ class GeminiService {
   }
 
   /**
-   * Simple image editing (100 tokens)
+   * Simple image editing
    */
-  async editImageSimple(userId, imagePath, editPrompt, options = {}) {
+  async editImageSimple(userId, tokenCost, imagePath, editPrompt, options = {}) {
     return this.executeWithTokens(
       userId,
+      tokenCost,
       IMAGE_OPERATION_TYPES.IMAGE_EDIT_SIMPLE,
       async () => {
         const base64Image = await this.imageToBase64(imagePath);
@@ -165,11 +163,12 @@ class GeminiService {
   }
 
   /**
-   * Complex image editing (150 tokens)
+   * Complex image editing
    */
-  async editImageComplex(userId, imagePath, complexPrompt, options = {}) {
+  async editImageComplex(userId, tokenCost, imagePath, complexPrompt, options = {}) {
     return this.executeWithTokens(
       userId,
+      tokenCost,
       IMAGE_OPERATION_TYPES.IMAGE_EDIT_COMPLEX,
       async () => {
         const base64Image = await this.imageToBase64(imagePath);
@@ -205,16 +204,18 @@ class GeminiService {
   }
 
   /**
-   * Compose multiple images (200 tokens)
+   * Compose multiple images
    */
   async composeMultipleImages(
     userId,
+    tokenCost,
     imagePaths,
     compositionPrompt,
     options = {}
   ) {
     return this.executeWithTokens(
       userId,
+      tokenCost,
       IMAGE_OPERATION_TYPES.MULTI_IMAGE_COMPOSITION,
       async () => {
         const imageParts = await Promise.all(
@@ -242,11 +243,12 @@ class GeminiService {
   }
 
   /**
-   * Style transfer between images (150 tokens)
+   * Style transfer between images
    */
-  async styleTransfer(userId, contentImagePath, styleImagePath, options = {}) {
+  async styleTransfer(userId, tokenCost, contentImagePath, styleImagePath, options = {}) {
     return this.executeWithTokens(
       userId,
+      tokenCost,
       IMAGE_OPERATION_TYPES.STYLE_TRANSFER,
       async () => {
         const contentImage = await this.imageToBase64(contentImagePath);
@@ -290,9 +292,9 @@ class GeminiService {
   }
 
   /**
-   * Quick action shortcuts (100 tokens)
+   * Quick action shortcuts
    */
-  async quickAction(userId, imagePath, actionType, options = {}) {
+  async quickAction(userId, tokenCost, imagePath, actionType, options = {}) {
     const templates = this.getActionTemplates();
     const prompt = templates[actionType];
 
@@ -300,18 +302,19 @@ class GeminiService {
       throw new Error(`Unknown quick action: ${actionType}`);
     }
 
-    return this.editImageSimple(userId, imagePath, prompt, {
+    return this.editImageSimple(userId, tokenCost, imagePath, prompt, {
       ...options,
       metadata: { actionType, quickAction: true },
     });
   }
 
   /**
-   * High-fidelity text rendering (100 tokens)
+   * High-fidelity text rendering
    */
-  async generateWithText(userId, textContent, designPrompt, options = {}) {
+  async generateWithText(userId, tokenCost, textContent, designPrompt, options = {}) {
     return this.executeWithTokens(
       userId,
+      tokenCost,
       IMAGE_OPERATION_TYPES.TEXT_RENDERING,
       async () => {
         const fullPrompt = `

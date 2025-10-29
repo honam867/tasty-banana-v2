@@ -3,7 +3,7 @@ const { get } = lodash;
 
 import { db } from "../db/drizzle.js";
 import { imageGenerations, uploads } from "../db/schema.js";
-import { eq, and, inArray, desc, sql } from "drizzle-orm";
+import { eq, and, inArray, desc, sql, lt, or } from "drizzle-orm";
 import GeminiService from "../services/gemini/GeminiService.js";
 import PromptTemplates from "../services/gemini/promptTemplates.js";
 import {
@@ -22,6 +22,10 @@ import {
   UPLOAD_PURPOSE,
 } from "../utils/constant.js";
 import { sendSuccess, throwError } from "../utils/response.js";
+import {
+  decodeCursor,
+  createCursorResponse,
+} from "../utils/cursor.helper.js";
 import {
   createGenerationRecord,
   updateGenerationRecord,
@@ -52,53 +56,6 @@ export const getOperations = async (req, res, next) => {
   }
 };
 
-/**
- * GET /api/generate/templates - List available templates
- */
-// export const getTemplates = async (req, res, next) => {
-//   try {
-//     const templates = {
-//       simple: {
-//         remove_background: "Remove background, make it pure white",
-//         flip_horizontal: "Flip horizontally (mirror)",
-//         flip_vertical: "Flip vertically",
-//         enhance_lighting: "Brighten and improve lighting",
-//         add_shadows: "Add soft shadows underneath",
-//         center_product: "Center product in frame",
-//         sharpen_details: "Sharpen for clarity",
-//         enhance_colors: "Make colors more vibrant",
-//       },
-//       complex: {
-//         complete_transformation:
-//           "Full image transformation with professional quality",
-//         background_scene_change: "Change background while maintaining lighting",
-//         lighting_enhancement: "Professional lighting corrections",
-//         color_correction: "Color balance and enhancement",
-//       },
-//       composition: {
-//         product_lifestyle: "Products in natural lifestyle settings",
-//         product_grouping: "Professional group shots of multiple products",
-//         scene_creation: "Custom scenes with product context",
-//       },
-//       styleTransfer: {
-//         artistic_style: "Apply artistic style while maintaining clarity",
-//         mood_transfer: "Transfer mood and atmosphere",
-//         aesthetic_enhancement: "Enhance with aesthetic qualities",
-//       },
-//     };
-
-//     sendSuccess(res, templates, "Templates retrieved successfully");
-//   } catch (error) {
-//     logger.error("Get templates error:", error);
-//     next(error);
-//   }
-// };
-
-/**
- * POST /api/generate/text-to-image - Generate image from text (Background Job)
- * Returns immediately with job ID. Generation happens in background.
- * Client should listen to WebSocket for progress updates.
- */
 export const textToImage = async (req, res) => {
   let generationId = null;
 
@@ -160,6 +117,7 @@ export const textToImage = async (req, res) => {
         aspectRatio,
         projectId,
         promptTemplateId, // Pass template ID to processor
+        operationTypeTokenCost: operationType.tokensPerOperation, // Pass token cost from database
       },
       {
         priority: JOB_PRIORITY.NORMAL,
@@ -399,6 +357,194 @@ export const getUserQueue = async (req, res, next) => {
     );
   } catch (error) {
     logger.error("Get user queue error:", error);
+    next(error);
+  }
+};
+
+/**
+ * GET /api/generate/my-generations - Get user's queue and generation history (unified endpoint)
+ * Returns:
+ * - Queue items (pending/processing) - always included
+ * - Completed items - paginated with cursor
+ * - Failed items - optional (if includeFailed=true)
+ * 
+ * Query params:
+ * - limit: items per page (default: 20, max: 100)
+ * - cursor: cursor for pagination (base64 encoded)
+ * - includeFailed: include failed generations (default: false)
+ */
+export const getMyGenerations = async (req, res, next) => {
+  try {
+    const userId = get(req, "user.id");
+    const limit = Math.min(parseInt(get(req.query, "limit", "20"), 10), 100);
+    const cursor = get(req.query, "cursor");
+    const includeFailed = get(req.query, "includeFailed") === "true";
+
+    // Decode cursor for pagination
+    const cursorData = decodeCursor(cursor);
+
+    // 1. Fetch all queue items (pending or processing) - always included, not paginated
+    const queueItems = await db
+      .select()
+      .from(imageGenerations)
+      .where(
+        and(
+          eq(imageGenerations.userId, userId),
+          inArray(imageGenerations.status, [
+            GENERATION_STATUS.PENDING,
+            GENERATION_STATUS.PROCESSING,
+          ])
+        )
+      )
+      .orderBy(desc(imageGenerations.createdAt));
+
+    // Format queue items
+    const queue = queueItems.map((gen) => {
+      const metadata = gen.metadata ? JSON.parse(gen.metadata) : {};
+
+      return {
+        generationId: gen.id,
+        status: gen.status,
+        progress: gen.status === GENERATION_STATUS.PENDING ? 0 : 50,
+        createdAt: gen.createdAt,
+        metadata: {
+          prompt: metadata.originalPrompt || "Image generation",
+          numberOfImages: metadata.numberOfImages || 1,
+          aspectRatio: metadata.aspectRatio || "1:1",
+          projectId: metadata.projectId,
+        },
+        tokensUsed: gen.tokensUsed,
+      };
+    });
+
+    // 2. Build completed items query with cursor pagination
+    let completedQuery = db
+      .select()
+      .from(imageGenerations)
+      .where(
+        and(
+          eq(imageGenerations.userId, userId),
+          eq(imageGenerations.status, GENERATION_STATUS.COMPLETED)
+        )
+      );
+
+    // Apply cursor if provided
+    if (cursorData) {
+      completedQuery = completedQuery.where(
+        or(
+          lt(imageGenerations.createdAt, new Date(cursorData.createdAt)),
+          and(
+            eq(imageGenerations.createdAt, new Date(cursorData.createdAt)),
+            lt(imageGenerations.id, cursorData.id)
+          )
+        )
+      );
+    }
+
+    const completedItems = await completedQuery
+      .orderBy(desc(imageGenerations.createdAt), desc(imageGenerations.id))
+      .limit(limit);
+
+    // Fetch images for completed items
+    const completedWithImages = await Promise.all(
+      completedItems.map(async (gen) => {
+        const metadata = gen.metadata ? JSON.parse(gen.metadata) : {};
+        const aiMetadata = gen.aiMetadata ? JSON.parse(gen.aiMetadata) : {};
+
+        const result = {
+          generationId: gen.id,
+          status: gen.status,
+          progress: 100,
+          createdAt: gen.createdAt,
+          completedAt: gen.completedAt,
+          metadata: {
+            prompt: metadata.originalPrompt || "Image generation",
+            numberOfImages: metadata.numberOfImages || 1,
+            aspectRatio: metadata.aspectRatio || "1:1",
+            projectId: metadata.projectId,
+          },
+          tokensUsed: gen.tokensUsed,
+          processingTimeMs: gen.processingTimeMs,
+        };
+
+        // Fetch images if available
+        if (aiMetadata.imageIds && aiMetadata.imageIds.length > 0) {
+          const images = await db
+            .select()
+            .from(uploads)
+            .where(inArray(uploads.id, aiMetadata.imageIds));
+
+          result.images = images.map((img) => ({
+            imageId: img.id,
+            imageUrl: img.publicUrl,
+            mimeType: img.mimeType,
+            sizeBytes: img.sizeBytes,
+          }));
+        } else {
+          result.images = [];
+        }
+
+        return result;
+      })
+    );
+
+    // 3. Optionally fetch failed items
+    let failed = [];
+    if (includeFailed) {
+      const failedItems = await db
+        .select()
+        .from(imageGenerations)
+        .where(
+          and(
+            eq(imageGenerations.userId, userId),
+            eq(imageGenerations.status, GENERATION_STATUS.FAILED)
+          )
+        )
+        .orderBy(desc(imageGenerations.createdAt))
+        .limit(20); // Limit failed items to last 20
+
+      failed = failedItems.map((gen) => {
+        const metadata = gen.metadata ? JSON.parse(gen.metadata) : {};
+
+        return {
+          generationId: gen.id,
+          status: gen.status,
+          createdAt: gen.createdAt,
+          metadata: {
+            prompt: metadata.originalPrompt || "Image generation",
+            numberOfImages: metadata.numberOfImages || 1,
+            aspectRatio: metadata.aspectRatio || "1:1",
+            projectId: metadata.projectId,
+          },
+          error: gen.errorMessage,
+          tokensUsed: gen.tokensUsed,
+        };
+      });
+    }
+
+    // 4. Create cursor response
+    const cursorResponse = createCursorResponse(completedItems, limit);
+
+    // 5. Build final response
+    const response = {
+      queue,
+      completed: completedWithImages,
+      cursor: cursorResponse,
+    };
+
+    // Add counts to cursor
+    response.cursor.queueCount = queue.length;
+    response.cursor.completedCount = completedWithImages.length;
+
+    // Add failed if requested
+    if (includeFailed) {
+      response.failed = failed;
+      response.cursor.failedCount = failed.length;
+    }
+
+    sendSuccess(res, response, "User generations retrieved successfully");
+  } catch (error) {
+    logger.error("Get user generations error:", error);
     next(error);
   }
 };
