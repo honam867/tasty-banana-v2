@@ -8,6 +8,8 @@ import gemini from "./gemini.route.js";
 import promptTemplate from "./promptTemplate.route.js";
 import styleLibrary from "./styleLibrary.route.js";
 import hint from "./hint.route.js";
+import operations from "./operations.route.js";
+import generations from "./generations.route.js";
 import { ROUTES } from "../utils/routes.js";
 
 function router(app) {
@@ -23,6 +25,12 @@ function router(app) {
   app.use(`/api${ROUTES.TOKENS}`, tokens);
   app.use("/api/generate", gemini);
   app.use("/api/queue", queue);
+  
+  // Operations Management Routes
+  app.use("/api/operations", operations);
+  
+  // Generation History & Queue Routes
+  app.use("/api/generations", generations);
   
   // Prompt Template Management Routes
   app.use("/api/prompt-templates", promptTemplate);
