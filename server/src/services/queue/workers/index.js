@@ -1,7 +1,7 @@
 import workerService from "../WorkerService.js";
 import logger from "../../../config/logger.js";
 import { QUEUE_NAMES, JOB_TYPES } from "../jobs/index.js";
-import { processTextToImage } from "../processors/imageGeneration.processor.js";
+import { processTextToImage, processImageReference } from "../processors/imageGeneration.processor.js";
 
 /**
  * Worker Initialization
@@ -19,6 +19,13 @@ function registerImageGenerationWorkers() {
     QUEUE_NAMES.IMAGE_GENERATION,
     JOB_TYPES.IMAGE_GENERATION.TEXT_TO_IMAGE,
     processTextToImage
+  );
+  
+  // Register image-reference processor
+  workerService.registerProcessor(
+    QUEUE_NAMES.IMAGE_GENERATION,
+    JOB_TYPES.IMAGE_GENERATION.IMAGE_REFERENCE,
+    processImageReference
   );
   
   // Create worker for image generation queue

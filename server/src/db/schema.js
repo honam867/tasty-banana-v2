@@ -196,6 +196,11 @@ export const imageGenerations = pgTable(
     prompt: text("prompt").notNull(),
     negativePrompt: text("negative_prompt"),
 
+    // Image reference fields (for image_reference operation type)
+    referenceImageId: uuid("reference_image_id").references(() => uploads.id),
+    referenceType: varchar("reference_type", { length: 50 }),
+    // Values: 'subject', 'face', 'full_image', null
+
     // AI parameters
     model: varchar("model", { length: 100 })
       .notNull()

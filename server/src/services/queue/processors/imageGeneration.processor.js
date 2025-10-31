@@ -17,6 +17,10 @@ import {
   emitGenerationFailed,
 } from "../../websocket/emitters/imageGeneration.emitter.js";
 import { GENERATION_STATUS, UPLOAD_PURPOSE } from "../../../utils/constant.js";
+import { generateReferencePrompt } from "../../../utils/imageReferencePrompts.js";
+import { db } from "../../../db/drizzle.js";
+import { uploads } from "../../../db/schema.js";
+import { and, eq } from "drizzle-orm";
 import logger from "../../../config/logger.js";
 
 /**
@@ -249,6 +253,196 @@ export async function processTextToImage(job) {
   }
 }
 
+/**
+ * Process image reference generation job
+ * Based on generateWithReference pattern from NANO_BANANA_SETUP_GUIDE.md
+ * @param {Object} job - BullMQ job object
+ * @returns {Promise<Object>} - Job result
+ */
+export async function processImageReference(job) {
+  const {
+    userId,
+    generationId,
+    prompt,
+    referenceImageId,
+    referenceType,
+    numberOfImages = 1,
+    aspectRatio = "1:1",
+    projectId,
+    operationTypeTokenCost,
+  } = job.data;
+
+  logger.info(
+    `Processing image reference job ${job.id} for generation ${generationId}`
+  );
+
+  try {
+    // Update status to PROCESSING
+    await updateGenerationRecord(generationId, {
+      status: GENERATION_STATUS.PROCESSING,
+      referenceImageId,
+      referenceType,
+    });
+
+    await job.updateProgress(10);
+    emitGenerationProgress(
+      userId,
+      generationId,
+      10,
+      "Loading reference image..."
+    );
+
+    // Fetch reference image from uploads table (authorization check)
+    const referenceImage = await db
+      .select()
+      .from(uploads)
+      .where(and(eq(uploads.id, referenceImageId), eq(uploads.userId, userId)))
+      .limit(1);
+
+    if (!referenceImage.length) {
+      throw new Error("Reference image not found or access denied");
+    }
+
+    await job.updateProgress(20);
+    emitGenerationProgress(
+      userId,
+      generationId,
+      20,
+      "Generating enhanced prompt..."
+    );
+
+    // Generate enhanced prompt using utility
+    const enhancedPrompt = generateReferencePrompt(prompt, referenceType);
+
+    await job.updateProgress(30);
+    emitGenerationProgress(
+      userId,
+      generationId,
+      30,
+      "Generating images with reference..."
+    );
+
+    // Generate images with reference
+    const generationResults = [];
+    let totalTokensUsed = 0;
+    let totalProcessingTime = 0;
+    let remainingBalance = 0;
+
+    const progressPerImage = 50 / numberOfImages;
+
+    for (let i = 0; i < numberOfImages; i++) {
+      // Call GeminiService with reference image (follows generateWithReference pattern)
+      const result = await GeminiService.generateWithReference(
+        userId,
+        operationTypeTokenCost,
+        referenceImage[0].publicUrl, // Use publicUrl - will be fetched from R2
+        enhancedPrompt,
+        {
+          aspectRatio,
+          metadata: {
+            originalPrompt: prompt,
+            referenceType,
+            projectId,
+            generationId,
+            imageNumber: i + 1,
+            totalImages: numberOfImages,
+          },
+        }
+      );
+
+      generationResults.push({ result: result.result, imageNumber: i + 1 });
+      totalTokensUsed += result.tokensUsed;
+      totalProcessingTime += result.processingTimeMs;
+      remainingBalance = result.remainingBalance;
+
+      const currentProgress = 30 + (i + 1) * progressPerImage;
+      await job.updateProgress(currentProgress);
+      emitGenerationProgress(
+        userId,
+        generationId,
+        currentProgress,
+        `Generated image ${i + 1}/${numberOfImages}`
+      );
+    }
+
+    // Upload images (80-90% progress)
+    await job.updateProgress(80);
+    emitGenerationProgress(userId, generationId, 80, "Uploading images...");
+
+    const imagesToUpload = generationResults.map((genResult) => ({
+      source: genResult.result,
+      userId,
+      purpose: UPLOAD_PURPOSE.GENERATION_OUTPUT,
+      title: `Ref-${referenceType}: ${prompt.substring(0, 50)}... (${
+        genResult.imageNumber
+      }/${numberOfImages})`,
+      metadata: {
+        generationId,
+        aspectRatio,
+        referenceType,
+        imageNumber: genResult.imageNumber,
+      },
+    }));
+
+    const uploadRecords = await saveMultipleToStorage(imagesToUpload);
+
+    // Build response and update database
+    const generatedImages = uploadRecords.map((uploadRecord, index) => ({
+      imageUrl: uploadRecord.publicUrl,
+      imageId: uploadRecord.id,
+      mimeType: generationResults[index].result.mimeType,
+      imageSize: generationResults[index].result.size,
+    }));
+
+    await updateGenerationRecord(generationId, {
+      status: GENERATION_STATUS.COMPLETED,
+      outputImageId: generatedImages[0].imageId,
+      tokensUsed: totalTokensUsed,
+      processingTimeMs: totalProcessingTime,
+      aiMetadata: JSON.stringify({
+        aspectRatio,
+        numberOfImages,
+        prompt,
+        enhancedPrompt,
+        referenceType,
+        referenceImageId,
+        imageIds: generatedImages.map((img) => img.imageId),
+      }),
+    });
+
+    await job.updateProgress(100);
+
+    const result = {
+      generationId,
+      images: generatedImages,
+      numberOfImages,
+      referenceType,
+      metadata: { prompt, referenceType, aspectRatio },
+      tokens: { used: totalTokensUsed, remaining: remainingBalance },
+      processing: {
+        timeMs: totalProcessingTime,
+        status: GENERATION_STATUS.COMPLETED,
+      },
+      createdAt: new Date().toISOString(),
+    };
+
+    emitGenerationCompleted(userId, generationId, result);
+    logger.info(`Image reference generation completed: ${generationId}`);
+
+    return result;
+  } catch (error) {
+    logger.error(`Image reference generation failed: ${job.id}`, error);
+    await updateGenerationRecord(generationId, {
+      status: GENERATION_STATUS.FAILED,
+      errorMessage: error.message,
+    });
+    const geminiError = handleGeminiError(error);
+    emitGenerationFailed(userId, generationId, geminiError.message);
+    throw error;
+  }
+}
+
 export default {
   processTextToImage,
+  processImageReference,
 };

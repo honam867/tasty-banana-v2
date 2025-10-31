@@ -194,11 +194,8 @@ export const getUserQueue = async (req, res, next) => {
 };
 
 /**
- * GET /api/generations/my-generations - Get user's queue and generation history (unified endpoint)
- * Returns:
- * - Queue items (pending/processing) - always included
- * - Completed items - paginated with cursor
- * - Failed items - optional (if includeFailed=true)
+ * GET /api/generations/my-generations - Get user's generation history (unified endpoint)
+ * Returns all generations (pending, processing, completed, failed) in a single array
  * 
  * Query params:
  * - limit: items per page (default: 20, max: 100)
@@ -210,59 +207,38 @@ export const getMyGenerations = async (req, res, next) => {
     const userId = get(req, "user.id");
     const limit = Math.min(parseInt(get(req.query, "limit", "20"), 10), 100);
     const cursor = get(req.query, "cursor");
-    const includeFailed = get(req.query, "includeFailed") === "true";
+    // Parse includeFailed: accepts "true", "1", or true boolean
+    const includeFailedParam = get(req.query, "includeFailed");
+    const includeFailed = includeFailedParam === "true" || includeFailedParam === "1" || includeFailedParam === true;
 
     // Decode cursor for pagination
     const cursorData = decodeCursor(cursor);
 
-    // 1. Fetch all queue items (pending or processing) - always included, not paginated
-    const queueItems = await db
+    // Build statuses to include
+    const statuses = [
+      GENERATION_STATUS.PENDING,
+      GENERATION_STATUS.PROCESSING,
+      GENERATION_STATUS.COMPLETED,
+    ];
+    
+    if (includeFailed) {
+      statuses.push(GENERATION_STATUS.FAILED);
+    }
+
+    // Build query with all statuses
+    let generationsQuery = db
       .select()
       .from(imageGenerations)
       .where(
         and(
           eq(imageGenerations.userId, userId),
-          inArray(imageGenerations.status, [
-            GENERATION_STATUS.PENDING,
-            GENERATION_STATUS.PROCESSING,
-          ])
-        )
-      )
-      .orderBy(desc(imageGenerations.createdAt));
-
-    // Format queue items
-    const queue = queueItems.map((gen) => {
-      const metadata = gen.metadata ? JSON.parse(gen.metadata) : {};
-
-      return {
-        generationId: gen.id,
-        status: gen.status,
-        progress: gen.status === GENERATION_STATUS.PENDING ? 0 : 50,
-        createdAt: gen.createdAt,
-        metadata: {
-          prompt: metadata.originalPrompt || "Image generation",
-          numberOfImages: metadata.numberOfImages || 1,
-          aspectRatio: metadata.aspectRatio || "1:1",
-          projectId: metadata.projectId,
-        },
-        tokensUsed: gen.tokensUsed,
-      };
-    });
-
-    // 2. Build completed items query with cursor pagination
-    let completedQuery = db
-      .select()
-      .from(imageGenerations)
-      .where(
-        and(
-          eq(imageGenerations.userId, userId),
-          eq(imageGenerations.status, GENERATION_STATUS.COMPLETED)
+          inArray(imageGenerations.status, statuses)
         )
       );
 
     // Apply cursor if provided
     if (cursorData) {
-      completedQuery = completedQuery.where(
+      generationsQuery = generationsQuery.where(
         or(
           lt(imageGenerations.createdAt, new Date(cursorData.createdAt)),
           and(
@@ -273,22 +249,30 @@ export const getMyGenerations = async (req, res, next) => {
       );
     }
 
-    const completedItems = await completedQuery
+    // Fetch with pagination
+    const generations = await generationsQuery
       .orderBy(desc(imageGenerations.createdAt), desc(imageGenerations.id))
       .limit(limit);
 
-    // Fetch images for completed items
-    const completedWithImages = await Promise.all(
-      completedItems.map(async (gen) => {
+    // Format results with images for completed items
+    const results = await Promise.all(
+      generations.map(async (gen) => {
         const metadata = gen.metadata ? JSON.parse(gen.metadata) : {};
         const aiMetadata = gen.aiMetadata ? JSON.parse(gen.aiMetadata) : {};
+
+        // Calculate progress based on status
+        let progress = 0;
+        if (gen.status === GENERATION_STATUS.PROCESSING) {
+          progress = 50;
+        } else if (gen.status === GENERATION_STATUS.COMPLETED) {
+          progress = 100;
+        }
 
         const result = {
           generationId: gen.id,
           status: gen.status,
-          progress: 100,
+          progress,
           createdAt: gen.createdAt,
-          completedAt: gen.completedAt,
           metadata: {
             prompt: metadata.originalPrompt || "Image generation",
             numberOfImages: metadata.numberOfImages || 1,
@@ -296,11 +280,21 @@ export const getMyGenerations = async (req, res, next) => {
             projectId: metadata.projectId,
           },
           tokensUsed: gen.tokensUsed,
-          processingTimeMs: gen.processingTimeMs,
         };
 
-        // Fetch images if available
-        if (aiMetadata.imageIds && aiMetadata.imageIds.length > 0) {
+        // Add completedAt for completed items
+        if (gen.status === GENERATION_STATUS.COMPLETED) {
+          result.completedAt = gen.completedAt;
+          result.processingTimeMs = gen.processingTimeMs;
+        }
+
+        // Add error for failed items
+        if (gen.status === GENERATION_STATUS.FAILED) {
+          result.error = gen.errorMessage;
+        }
+
+        // Fetch images for completed items
+        if (gen.status === GENERATION_STATUS.COMPLETED && aiMetadata.imageIds && aiMetadata.imageIds.length > 0) {
           const images = await db
             .select()
             .from(uploads)
@@ -312,7 +306,7 @@ export const getMyGenerations = async (req, res, next) => {
             mimeType: img.mimeType,
             sizeBytes: img.sizeBytes,
           }));
-        } else {
+        } else if (gen.status === GENERATION_STATUS.COMPLETED) {
           result.images = [];
         }
 
@@ -320,59 +314,14 @@ export const getMyGenerations = async (req, res, next) => {
       })
     );
 
-    // 3. Optionally fetch failed items
-    let failed = [];
-    if (includeFailed) {
-      const failedItems = await db
-        .select()
-        .from(imageGenerations)
-        .where(
-          and(
-            eq(imageGenerations.userId, userId),
-            eq(imageGenerations.status, GENERATION_STATUS.FAILED)
-          )
-        )
-        .orderBy(desc(imageGenerations.createdAt))
-        .limit(20); // Limit failed items to last 20
+    // Create cursor response
+    const cursorResponse = createCursorResponse(generations, limit);
 
-      failed = failedItems.map((gen) => {
-        const metadata = gen.metadata ? JSON.parse(gen.metadata) : {};
-
-        return {
-          generationId: gen.id,
-          status: gen.status,
-          createdAt: gen.createdAt,
-          metadata: {
-            prompt: metadata.originalPrompt || "Image generation",
-            numberOfImages: metadata.numberOfImages || 1,
-            aspectRatio: metadata.aspectRatio || "1:1",
-            projectId: metadata.projectId,
-          },
-          error: gen.errorMessage,
-          tokensUsed: gen.tokensUsed,
-        };
-      });
-    }
-
-    // 4. Create cursor response
-    const cursorResponse = createCursorResponse(completedItems, limit);
-
-    // 5. Build final response
+    // Build final response
     const response = {
-      queue,
-      completed: completedWithImages,
+      results,
       cursor: cursorResponse,
     };
-
-    // Add counts to cursor
-    response.cursor.queueCount = queue.length;
-    response.cursor.completedCount = completedWithImages.length;
-
-    // Add failed if requested
-    if (includeFailed) {
-      response.failed = failed;
-      response.cursor.failedCount = failed.length;
-    }
 
     sendSuccess(res, response, "User generations retrieved successfully");
   } catch (error) {

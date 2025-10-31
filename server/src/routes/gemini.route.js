@@ -1,8 +1,9 @@
 import express from "express";
 import multer from "multer";
-import { textToImage } from "../controllers/gemini.controller.js";
+import { textToImage, imageReference } from "../controllers/gemini.controller.js";
 import {
   validateTextToImage,
+  validateImageReference,
   // validateSimpleEdit,
   // validateComplexEdit,
   // validateComposition,
@@ -11,10 +12,11 @@ import {
   // validateTextRendering,
   validateRequestWithCleanup,
 } from "../middlewares/validators.js";
-import // uploadSingle,
-// uploadMultiple,
-// uploadStyleTransfer,
-"../middlewares/upload.js";
+import {
+  uploadSingle,
+  // uploadMultiple,
+  // uploadStyleTransfer,
+} from "../middlewares/upload.js";
 import { verifyToken } from "../middlewares/tokenHandler.js";
 import { asyncHandler } from "../middlewares/errorHandler.js";
 import { GEMINI_LIMITS, GEMINI_ERRORS } from "../utils/constant.js";
@@ -94,6 +96,75 @@ router.post(
   validateTextToImage,
   validateRequestWithCleanup,
   asyncHandler(textToImage)
+);
+
+/**
+ * @swagger
+ * /generate/image-reference:
+ *   post:
+ *     summary: Generate images using a reference image (upload OR referenceImageId)
+ *     tags: [Gemini AI]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - prompt
+ *               - referenceType
+ *             properties:
+ *               prompt:
+ *                 type: string
+ *                 example: Professional portrait in a modern office
+ *               referenceType:
+ *                 type: string
+ *                 enum: [subject, face, full_image]
+ *                 example: face
+ *                 description: "Focus mode: subject (main object), face (facial features), full_image (entire composition)"
+ *               image:
+ *                 type: string
+ *                 format: binary
+ *                 description: Reference image file (optional if referenceImageId provided)
+ *               referenceImageId:
+ *                 type: string
+ *                 format: uuid
+ *                 example: 550e8400-e29b-41d4-a716-446655440000
+ *                 description: UUID of previously uploaded/generated image (optional if image file uploaded)
+ *               aspectRatio:
+ *                 type: string
+ *                 example: "1:1"
+ *               numberOfImages:
+ *                 type: integer
+ *                 minimum: 1
+ *                 maximum: 4
+ *                 default: 1
+ *               projectId:
+ *                 type: string
+ *                 format: uuid
+ *     responses:
+ *       202:
+ *         description: Image reference generation job queued successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Success'
+ *       400:
+ *         description: Validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.post(
+  "/image-reference",
+  verifyToken,
+  uploadSingle,
+  validateImageReference,
+  validateRequestWithCleanup,
+  asyncHandler(imageReference)
 );
 
 // Error handling middleware for file upload errors

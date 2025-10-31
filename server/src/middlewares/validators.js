@@ -11,7 +11,7 @@ import {
   GEMINI_QUICK_ACTIONS,
   GEMINI_DESIGN_CATEGORIES,
   GEMINI_LIMITS,
-  IMAGE_OPERATION_TYPES
+  IMAGE_REFERENCE_TYPES_ARRAY
 } from '../utils/constant.js';
 
 // ========================================
@@ -156,18 +156,58 @@ export const validateTextToImage = [
     })
     .withMessage(`Prompt must be ${GEMINI_LIMITS.PROMPT_MIN_LENGTH}-${GEMINI_LIMITS.PROMPT_MAX_LENGTH} characters`),
   body('aspectRatio')
-    .optional()
+    .optional({ values: 'falsy' })
     .isIn(GEMINI_ASPECT_RATIOS)
     .withMessage(`Invalid aspect ratio. Allowed: ${GEMINI_ASPECT_RATIOS.join(', ')}`),
   body('numberOfImages')
-    .optional()
+    .optional({ values: 'falsy' })
     .isInt({ 
       min: GEMINI_LIMITS.NUMBER_OF_IMAGES_MIN, 
       max: GEMINI_LIMITS.NUMBER_OF_IMAGES_MAX 
     })
     .withMessage(`Number of images must be between ${GEMINI_LIMITS.NUMBER_OF_IMAGES_MIN} and ${GEMINI_LIMITS.NUMBER_OF_IMAGES_MAX}`),
   body('projectId')
-    .optional()
+    .optional({ values: 'falsy' })
+    .isUUID()
+    .withMessage('Invalid project ID'),
+  body('promptTemplateId')
+    .optional({ values: 'falsy' })
+    .isUUID()
+    .withMessage('Invalid prompt template ID')
+];
+
+/**
+ * Validate image reference request
+ */
+export const validateImageReference = [
+  body('prompt')
+    .notEmpty().withMessage('Prompt is required')
+    .isLength({ 
+      min: GEMINI_LIMITS.PROMPT_MIN_LENGTH, 
+      max: GEMINI_LIMITS.PROMPT_MAX_LENGTH 
+    })
+    .withMessage(`Prompt must be ${GEMINI_LIMITS.PROMPT_MIN_LENGTH}-${GEMINI_LIMITS.PROMPT_MAX_LENGTH} characters`),
+  body('referenceType')
+    .notEmpty().withMessage('Reference type is required')
+    .isIn(IMAGE_REFERENCE_TYPES_ARRAY)
+    .withMessage(`Invalid reference type. Allowed: ${IMAGE_REFERENCE_TYPES_ARRAY.join(', ')}`),
+  body('referenceImageId')
+    .optional({ values: 'falsy' })
+    .isUUID()
+    .withMessage('Invalid reference image ID'),
+  body('aspectRatio')
+    .optional({ values: 'falsy' })
+    .isIn(GEMINI_ASPECT_RATIOS)
+    .withMessage(`Invalid aspect ratio. Allowed: ${GEMINI_ASPECT_RATIOS.join(', ')}`),
+  body('numberOfImages')
+    .optional({ values: 'falsy' })
+    .isInt({ 
+      min: GEMINI_LIMITS.NUMBER_OF_IMAGES_MIN, 
+      max: GEMINI_LIMITS.NUMBER_OF_IMAGES_MAX 
+    })
+    .withMessage(`Number of images must be between ${GEMINI_LIMITS.NUMBER_OF_IMAGES_MIN} and ${GEMINI_LIMITS.NUMBER_OF_IMAGES_MAX}`),
+  body('projectId')
+    .optional({ values: 'falsy' })
     .isUUID()
     .withMessage('Invalid project ID')
 ];

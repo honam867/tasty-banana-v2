@@ -73,6 +73,7 @@ export const DATE = {
 // Image Generation Operation Types
 export const IMAGE_OPERATION_TYPES = {
   TEXT_TO_IMAGE: "text_to_image",
+  IMAGE_REFERENCE: "image_reference",
   IMAGE_EDIT_SIMPLE: "image_edit_simple",
   IMAGE_EDIT_COMPLEX: "image_edit_complex",
   MULTI_IMAGE_COMPOSITION: "multi_image_composition",
@@ -81,6 +82,15 @@ export const IMAGE_OPERATION_TYPES = {
   TEXT_RENDERING: "text_rendering",
   CUSTOM_PROMPT: "custom_prompt",
 };
+
+// Image Reference Types
+export const IMAGE_REFERENCE_TYPES = {
+  SUBJECT: "subject",
+  FACE: "face",
+  FULL_IMAGE: "full_image"
+};
+
+export const IMAGE_REFERENCE_TYPES_ARRAY = ['subject', 'face', 'full_image'];
 
 // Gemini Image Generation Constants
 export const GEMINI_ASPECT_RATIOS = ['1:1', '16:9', '9:16', '4:3', '3:4'];

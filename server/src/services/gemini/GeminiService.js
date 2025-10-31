@@ -128,6 +128,52 @@ class GeminiService {
     );
   }
 
+  /**
+   * Generate image using reference image
+   * Based on generateWithReference pattern from NANO_BANANA_SETUP_GUIDE.md
+   * 
+   * @param {string} userId - User ID
+   * @param {number} tokenCost - Token cost
+   * @param {string} referenceImagePath - Path/URL to reference image
+   * @param {string} prompt - Enhanced prompt
+   * @param {Object} options - Generation options
+   */
+  async generateWithReference(userId, tokenCost, referenceImagePath, prompt, options = {}) {
+    return this.executeWithTokens(
+      userId,
+      tokenCost,
+      IMAGE_OPERATION_TYPES.IMAGE_REFERENCE,
+      async () => {
+        // Load reference image
+        const imageBase64 = await this.imageToBase64(referenceImagePath);
+        const mimeType = this.getMimeType(referenceImagePath);
+
+        const generationConfig = this.buildGenerationConfig(options);
+
+        // Pattern from NANO_BANANA_SETUP_GUIDE: text prompt + reference image
+        const result = await this.model.generateContent({
+          contents: [
+            {
+              parts: [
+                { text: prompt }, // Enhanced prompt with reference type instructions
+                {
+                  inlineData: {
+                    data: imageBase64,
+                    mimeType,
+                  },
+                },
+              ],
+            },
+          ],
+          generationConfig,
+        });
+
+        return this.extractImage(result);
+      },
+      { metadata: { prompt, referenceImagePath, ...options } }
+    );
+  }
+
   // --- Helper Methods ---
 
   extractImage(result) {
@@ -148,12 +194,23 @@ class GeminiService {
     throw new Error("No image found in Gemini response");
   }
 
-  async imageToBase64(imagePath) {
+  async imageToBase64(imagePathOrUrl) {
     try {
-      const imageData = await fs.promises.readFile(imagePath);
+      // Check if it's a URL (public R2 URL)
+      if (imagePathOrUrl.startsWith('http://') || imagePathOrUrl.startsWith('https://')) {
+        const response = await fetch(imagePathOrUrl);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch image: ${response.statusText}`);
+        }
+        const arrayBuffer = await response.arrayBuffer();
+        return Buffer.from(arrayBuffer).toString('base64');
+      }
+      
+      // Local file path
+      const imageData = await fs.promises.readFile(imagePathOrUrl);
       return imageData.toString("base64");
     } catch (error) {
-      throw new Error(`Failed to read image: ${imagePath} - ${error.message}`);
+      throw new Error(`Failed to read image: ${imagePathOrUrl} - ${error.message}`);
     }
   }
 
