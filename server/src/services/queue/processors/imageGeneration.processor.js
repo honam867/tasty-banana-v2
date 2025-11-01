@@ -21,6 +21,7 @@ import { generateReferencePrompt } from "../../../utils/imageReferencePrompts.js
 import { db } from "../../../db/drizzle.js";
 import { uploads } from "../../../db/schema.js";
 import { and, eq } from "drizzle-orm";
+import tempFileManager from "../../../utils/tempFileManager.js";
 import logger from "../../../config/logger.js";
 
 /**
@@ -270,11 +271,15 @@ export async function processImageReference(job) {
     aspectRatio = "1:1",
     projectId,
     operationTypeTokenCost,
+    tempFileId, // Optional: temp file ID if uploaded (avoids R2 download)
   } = job.data;
 
   logger.info(
     `Processing image reference job ${job.id} for generation ${generationId}`
   );
+
+  let referenceImagePath = null;
+  let usedTempFile = false;
 
   try {
     // Update status to PROCESSING
@@ -292,15 +297,38 @@ export async function processImageReference(job) {
       "Loading reference image..."
     );
 
-    // Fetch reference image from uploads table (authorization check)
-    const referenceImage = await db
-      .select()
-      .from(uploads)
-      .where(and(eq(uploads.id, referenceImageId), eq(uploads.userId, userId)))
-      .limit(1);
+    // Optimization: Use temp file if available (uploaded flow), otherwise download from R2
+    if (tempFileId) {
+      // Check if temp file still exists
+      referenceImagePath = tempFileManager.getTempFilePath(tempFileId);
+      
+      if (referenceImagePath) {
+        usedTempFile = true;
+        logger.info(
+          `Using temp file for processing (optimization): ${tempFileId}`
+        );
+      } else {
+        logger.warn(
+          `Temp file expired or missing: ${tempFileId}, falling back to R2 download`
+        );
+      }
+    }
 
-    if (!referenceImage.length) {
-      throw new Error("Reference image not found or access denied");
+    // Fallback: Fetch reference image from R2 (existing flow or temp file unavailable)
+    if (!referenceImagePath) {
+      const referenceImage = await db
+        .select()
+        .from(uploads)
+        .where(and(eq(uploads.id, referenceImageId), eq(uploads.userId, userId)))
+        .limit(1);
+
+      if (!referenceImage.length) {
+        throw new Error("Reference image not found or access denied");
+      }
+
+      // Use publicUrl (will be downloaded by GeminiService)
+      referenceImagePath = referenceImage[0].publicUrl;
+      logger.info(`Using R2 public URL for processing: ${referenceImagePath}`);
     }
 
     await job.updateProgress(20);
@@ -332,10 +360,11 @@ export async function processImageReference(job) {
 
     for (let i = 0; i < numberOfImages; i++) {
       // Call GeminiService with reference image (follows generateWithReference pattern)
+      // referenceImagePath can be either local temp file path OR R2 public URL
       const result = await GeminiService.generateWithReference(
         userId,
         operationTypeTokenCost,
-        referenceImage[0].publicUrl, // Use publicUrl - will be fetched from R2
+        referenceImagePath, // Local temp path OR R2 URL (GeminiService handles both)
         enhancedPrompt,
         {
           aspectRatio,
@@ -346,6 +375,7 @@ export async function processImageReference(job) {
             generationId,
             imageNumber: i + 1,
             totalImages: numberOfImages,
+            usedTempFile, // Track optimization usage
           },
         }
       );
@@ -439,6 +469,12 @@ export async function processImageReference(job) {
     const geminiError = handleGeminiError(error);
     emitGenerationFailed(userId, generationId, geminiError.message);
     throw error;
+  } finally {
+    // Cleanup temp file after processing (success or failure)
+    if (tempFileId) {
+      tempFileManager.cleanup(tempFileId);
+      logger.debug(`Cleaned up temp file after processing: ${tempFileId}`);
+    }
   }
 }
 

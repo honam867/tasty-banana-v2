@@ -13,6 +13,7 @@ import {
   HTTP_STATUS,
   GENERATION_STATUS,
   UPLOAD_PURPOSE,
+  TEMP_FILE_CONFIG,
 } from "../utils/constant.js";
 import { sendSuccess, throwError } from "../utils/response.js";
 import {
@@ -21,6 +22,7 @@ import {
   handleGeminiError,
   saveToStorage,
 } from "../utils/gemini.helper.js";
+import tempFileManager from "../utils/tempFileManager.js";
 import logger from "../config/logger.js";
 
 export const textToImage = async (req, res) => {
@@ -147,6 +149,7 @@ export const textToImage = async (req, res) => {
 export const imageReference = async (req, res) => {
   let generationId = null;
   let uploadedFile = null;
+  let tempFileId = null;
 
   try {
     const userId = get(req, "user.id");
@@ -172,8 +175,9 @@ export const imageReference = async (req, res) => {
     if (!referenceType)
       throwError("Reference type is required", HTTP_STATUS.BAD_REQUEST);
 
-    // If file uploaded, save to storage first
+    // If file uploaded, save to storage AND temp storage for optimization
     if (uploadedFile) {
+      // Save to R2 for database record
       const uploadRecord = await saveToStorage({
         filePath: uploadedFile.path,
         userId,
@@ -186,9 +190,21 @@ export const imageReference = async (req, res) => {
       });
 
       referenceImageId = uploadRecord.id;
-      logger.info(`Uploaded reference image: ${referenceImageId}`);
+      logger.info(`Uploaded reference image to R2: ${referenceImageId}`);
 
-      // Cleanup uploaded file after saving to storage
+      // Store in temp manager for processing (avoid re-downloading from R2)
+      tempFileId = await tempFileManager.storeTempFile(
+        uploadedFile.path,
+        {
+          userId,
+          uploadId: referenceImageId,
+          purpose: TEMP_FILE_CONFIG.PURPOSE.REFERENCE_IMAGE,
+          referenceType,
+        }
+      );
+      logger.info(`Stored temp file for processing: ${tempFileId}`);
+
+      // Cleanup uploaded file after copying to temp
       if (fs.existsSync(uploadedFile.path)) {
         fs.unlinkSync(uploadedFile.path);
       }
@@ -242,6 +258,7 @@ export const imageReference = async (req, res) => {
         aspectRatio,
         projectId,
         operationTypeTokenCost: operationType.tokensPerOperation,
+        tempFileId, // Pass temp file ID if file was uploaded (null if using existing referenceImageId)
       },
       {
         priority: JOB_PRIORITY.NORMAL,
@@ -284,6 +301,11 @@ export const imageReference = async (req, res) => {
     // Cleanup uploaded file on error
     if (uploadedFile?.path && fs.existsSync(uploadedFile.path)) {
       fs.unlinkSync(uploadedFile.path);
+    }
+
+    // Cleanup temp file on error
+    if (tempFileId) {
+      tempFileManager.cleanup(tempFileId);
     }
 
     if (generationId) {

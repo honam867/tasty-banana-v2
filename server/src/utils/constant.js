@@ -180,6 +180,18 @@ export const STORAGE_PROVIDER = {
   LOCAL: 'local'
 };
 
+// Temporary File Configuration
+export const TEMP_FILE_CONFIG = {
+  DEFAULT_EXPIRATION_MS: 5 * 60 * 1000, // 5 minutes (temp file TTL)
+  CLEANUP_CRON: process.env.TEMP_FILE_CLEANUP_CRON || '*/5 * * * *', // Run cleanup every 5 minutes (cron syntax)
+  PURPOSE: {
+    REFERENCE_IMAGE: 'reference_image',
+    STYLE_IMAGE: 'style_image',
+    COMPOSE_IMAGE: 'compose_image',
+    EDIT_IMAGE: 'edit_image'
+  }
+};
+
 // Gemini Model Configuration
 export const GEMINI_CONFIG = {
   DEFAULT_MODEL: 'gemini-2.5-flash-image',

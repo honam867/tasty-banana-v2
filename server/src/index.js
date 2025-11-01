@@ -15,6 +15,7 @@ import redisManager from "./services/queue/redis.js";
 import queueService from "./services/queue/QueueService.js";
 import { initializeWorkers, shutdownWorkers } from "./services/queue/workers/index.js";
 import websocketService from "./services/websocket/index.js";
+import tempFileCleanupScheduler from "./services/scheduler/tempFileCleanup.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -58,6 +59,10 @@ function initializeWebSocket() {
 initializeQueue();
 initializeWebSocket();
 
+// Initialize temp file cleanup scheduler with cron
+tempFileCleanupScheduler.start();
+logger.info("Temp file cleanup scheduler started with cron");
+
 app.use(express.static(path.join(__dirname, "public")));
 app.use(cors());
 app.use(express.json());
@@ -81,6 +86,10 @@ async function gracefulShutdown(signal) {
   logger.info(`${signal} received, shutting down gracefully...`);
   
   try {
+    // Stop temp file cleanup scheduler
+    tempFileCleanupScheduler.stop();
+    logger.info("Temp file cleanup scheduler stopped");
+    
     // Close WebSocket connections first
     await websocketService.shutdown();
     logger.info("WebSocket service shut down");
