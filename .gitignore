@@ -26,3 +26,5 @@ node_modules/
 .cursor/commands
 .cursor/rules/postman-mcp.mdc
 .playwright-mcp
+admin-dashboard-specs
+mermaid

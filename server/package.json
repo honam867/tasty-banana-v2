@@ -9,6 +9,8 @@
     "test:coverage": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --coverage",
     "dev": "nodemon src/index.js",
     "seeder": "nodemon src/seed/index.js",
+    "seed": "node src/db/seed.js",
+    "db:seed": "node src/db/seed.js",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:migrate": "node src/db/migrate.js",

@@ -11,203 +11,200 @@
     "tasks": [
       {
         "id": 1,
-        "title": "Token Management System (Backend)",
-        "description": "Implement all token management endpoints (user token balance, transaction history, admin top-up) and signup bonus functionality.",
-        "details": "- Implement DB hooks for user registration to credit 1,000 tokens and log a transaction.\n- Create endpoints: GET /api/tokens/balance, GET /api/tokens/history, POST /api/admin/tokens/topup.\n- Ensure atomic database transactions on balance updates.\n- Implement role-based auth for admin top-up.\n- Enforce non-negative balances and validate all token operations, logging every state change for auditing.\n- Pseudocode for signup bonus:\n```\nOn UserSignUpSuccess(userId):\n  Begin Transaction\n    Insert userTokens (userId, balance=1000)\n    Log tokenTransaction (userId, +1000, 'signup_bonus')\n  Commit\n```",
-        "testStrategy": "Unit test token calculation and validation logic. Use integration tests for all API endpoints, including sign-up bonus trigger, balance retrieval, admin top-up, and negative balance handling. Verify the audit trail for every operation.",
-        "priority": "high",
-        "dependencies": [],
+        "title": "Implement Token Management System (Signup Bonus, Balance API, Transaction History, Admin Top-up)",
+        "description": "Design and implement a robust token ledger with signup bonus, user balance API, paginated transaction history, and secure admin top-up functionality.",
+        "details": "Scope and objectives:\n- Create a foundational token management system that all paid features will rely on.\n- Award 1,000 tokens on user signup, expose balance and transaction history APIs, and provide an audited admin-only top-up endpoint.\n\nArchitecture overview:\n- Use a double-entry style ledger (credits/debits) for immutable transaction tracking, plus a denormalized balance table for fast reads.\n- Ensure idempotency, concurrency safety, and strict authorization.\n\nData model (PostgreSQL; adapt types as needed):\n- Table: token_transactions\n  - id: UUID PK\n  - user_id: UUID NOT NULL (FK users.id)\n  - direction: TEXT CHECK (direction IN ('credit','debit')) NOT NULL\n  - amount: BIGINT NOT NULL CHECK (amount > 0)\n  - source: TEXT NOT NULL CHECK (source IN ('signup_bonus','admin_topup','purchase','consume','refund'))\n  - reference_id: TEXT NULL (for idempotency, e.g., signup:userId or external order id)\n  - metadata: JSONB NULL (reason, admin notes, etc.)\n  - created_at: TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()\n  - created_by: UUID NULL (admin user id for admin_topup)\n  - Unique index: UNIQUE (user_id, source, COALESCE(reference_id,'')) to enforce idempotency per source.\n  - Indexes: (user_id, created_at DESC), (user_id, id DESC) for pagination.\n- Table: token_balances\n  - user_id: UUID PK\n  - balance: BIGINT NOT NULL DEFAULT 0\n  - updated_at: TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()\n  - version: BIGINT NOT NULL DEFAULT 0 (optimistic locking)\n\nDatabase migration (example SQL):\n- Create tables and check constraints.\n- Add indices and unique idempotency constraint.\n\nService layer (example in Node.js/TypeScript; adapt to your stack):\n- TokenService.credit(userId, amount, source, referenceId, metadata, actorId?)\n  - Begin transaction.\n  - Insert into token_transactions (direction='credit'). If unique constraint violation occurs (same userId+source+referenceId), treat as idempotent success by reading existing transaction.\n  - Update token_balances with row-level lock: SELECT ... FOR UPDATE; UPDATE balance = balance + amount; increment version; set updated_at.\n  - Commit.\n- TokenService.debit(userId, amount, source, referenceId, metadata)\n  - Begin transaction.\n  - Lock token_balances row FOR UPDATE.\n  - If current balance < amount, abort with InsufficientFunds.\n  - Insert token_transactions (direction='debit').\n  - Update token_balances: balance = balance - amount.\n  - Commit.\n- TokenService.getBalance(userId)\n  - Read token_balances; if missing row, initialize with 0.\n- TokenService.getTransactions(userId, limit, cursor?)\n  - Cursor-based pagination using (created_at,id) or (id) descending; return items and nextCursor.\n\nSignup bonus integration:\n- On successful user creation, invoke TokenService.credit(userId, 1000, 'signup_bonus', `signup:${userId}`, {note:'initial bonus'})\n- Rely on unique constraint to ensure exactly-once credit even if the event retries.\n\nHTTP APIs (REST; secure with existing auth middleware):\n- GET /v1/tokens/balance\n  - Auth: required (user).\n  - Response: { balance: number, currency: 'tokens', updatedAt: ISO8601 }\n- GET /v1/tokens/transactions?limit=50&cursor=...\n  - Auth: required (user).\n  - Response: { items: [...], nextCursor: string|null }\n  - Each item: { id, direction, amount, source, referenceId, metadata, createdAt }\n- POST /v1/admin/tokens/topup\n  - Auth: required (admin role).\n  - Body: { userId: string, amount: number (positive integer), reason: string, idempotencyKey?: string }\n  - Behavior: calls TokenService.credit(userId, amount, 'admin_topup', idempotencyKey || `admin:${adminId}:${timestamp}`, {reason}, adminId)\n  - Response: { balance: number, transactionId: string }\n\nSecurity and compliance:\n- Authorization: enforce user can only view their own balance/history; admin-only access for top-ups.\n- Input validation: amount is integer > 0; limit between 1 and 100; cursor format validated.\n- Idempotency: enforce via unique constraint and optional idempotencyKey.\n- Audit: store admin actorId and reason in metadata for admin_topup.\n- Rate limiting: apply conservative limits to admin endpoints; log all admin actions.\n\nError handling:\n- 400 for invalid input; 401/403 for auth failures; 409 for idempotency conflicts (if behavior chooses to surface it); 422 InsufficientFunds on debit.\n- Return structured errors with codes: INVALID_INPUT, UNAUTHORIZED, FORBIDDEN, INSUFFICIENT_FUNDS, IDEMPOTENT_REPLAY.\n\nObservability:\n- Emit metrics: tokens.credit.count, tokens.debit.count, tokens.balance.read.count, tokens.tx.list.count.\n- Structured logs for each transaction with userId, amount, source, referenceId, actorId.\n\nPerformance and pagination details:\n- Prefer cursor-based pagination using (created_at, id) tuple to avoid duplicates under concurrent inserts.\n- Default limit 50, max 100.\n- Ensure relevant indexes exist to keep queries under 100 ms for 100k+ rows.\n\nDeployment and migration plan:\n- Apply migrations.\n- Deploy service code.\n- Backfill token_balances for existing users by computing SUM(credits - debits) if needed.\n- Feature is considered GA after passing integration and load tests.\n",
+        "testStrategy": "Unit tests:\n- TokenService.credit creates a transaction and updates balance correctly; repeated calls with same (userId, source, referenceId) are idempotent.\n- TokenService.debit prevents negative balances and updates ledger correctly.\n- Validation rejects non-integer or non-positive amounts.\n\nIntegration tests:\n- User signup triggers one 1,000 token credit; verify transaction {source:'signup_bonus'} exists and balance == 1000; simulate duplicate signup event and confirm no additional credit.\n- GET /v1/tokens/balance returns accurate balance for user with multiple credits/debits.\n- GET /v1/tokens/transactions returns most recent first; verify pagination with >200 transactions; check nextCursor works and no duplicates/missing between pages.\n- POST /v1/admin/tokens/topup requires admin; non-admin receives 403; admin top-up increases balance and creates audited transaction with metadata.reason; repeated request with same idempotencyKey does not duplicate credit.\n\nSecurity tests:\n- A user cannot fetch another user's balance or transactions (403/404 as per policy).\n- Admin endpoint accessible only with admin role; verify role checks.\n\nConcurrency tests:\n- Fire 10 parallel admin top-ups with same idempotencyKey; confirm only one transaction exists and final balance reflects single credit.\n- Run parallel credits/debits and ensure balance integrity under row locks.\n\nPerformance tests:\n- Seed 100k transactions for a user; ensure balance API < 50 ms and transactions page < 150 ms with indexes.\n\nData integrity checks:\n- Periodically compute SUM ledger vs token_balances for a sample set; assert equality.\n- Verify unique constraint on (user_id, source, reference_id) works across migrations.\n\nMigration/rollback:\n- Apply migrations on a test database; roll back and re-apply to ensure idempotent migration scripts.\n\nObservability:\n- Verify audit logs for admin_topup include actorId and reason.\n- Check metrics are emitted and labeled correctly.",
         "status": "pending",
-        "subtasks": []
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Signup Bonus - Auto-grant 1,000 tokens",
+            "description": "Automatically grant 1,000 tokens when user signs up. Create userTokens record and tokenTransactions record with type 'credit' and reason 'signup_bonus'.",
+            "details": "Implementation requirements:\n- Trigger on user registration success\n- Use TokenService.credit() with 1000 tokens\n- reasonCode: 'signup_bonus'\n- Use idempotencyKey to prevent duplicates: signup:{userId}\n- Include metadata: email, signupDate\n- Handle failures gracefully without breaking registration",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 1
+          },
+          {
+            "id": 2,
+            "title": "Token Balance API - GET /api/tokens/balance",
+            "description": "Implement endpoint to retrieve user's current token balance, totalEarned, and totalSpent.",
+            "details": "Endpoint: GET /api/tokens/balance\nAuth: Required (JWT)\nResponse format:\n{\n  \"balance\": 850,\n  \"totalEarned\": 1000,\n  \"totalSpent\": 150\n}\n\nImplementation:\n- Use TokenService.getBalance(userId)\n- Read from userTokens table\n- Return balance, totalEarned, totalSpent fields",
+            "status": "pending",
+            "dependencies": [],
+            "parentTaskId": 1
+          },
+          {
+            "id": 3,
+            "title": "Token Transaction History - GET /api/tokens/history",
+            "description": "Implement endpoint to retrieve paginated token transaction history with optional filters.",
+            "details": "Endpoint: GET /api/tokens/history\nAuth: Required (JWT)\nQuery params:\n- limit (default: 50, max: 100)\n- offset (default: 0)\n- type (optional: 'credit' | 'debit')\n- cursor (for pagination)\n\nResponse format:\n{\n  \"transactions\": [{\n    \"id\": \"uuid\",\n    \"type\": \"debit\",\n    \"amount\": 100,\n    \"balanceAfter\": 850,\n    \"reason\": \"text_to_image\",\n    \"referenceType\": \"image_generation\",\n    \"referenceId\": \"uuid\",\n    \"createdAt\": \"2025-10-25T10:00:00Z\"\n  }],\n  \"total\": 5,\n  \"hasMore\": false\n}\n\nImplementation:\n- Use TokenService.getHistory() with pagination\n- Support filtering by type and reason\n- Order by createdAt DESC\n<info added on 2025-10-26T04:17:42.564Z>\nImplemented in tokens.route.js: GET /api/tokens/history with JWT auth, pagination via limit and cursor, and filtering by type and reason, delegating to TokenService.getHistory(). Implementation complete.\n</info added on 2025-10-26T04:17:42.564Z>",
+            "status": "pending",
+            "dependencies": [],
+            "parentTaskId": 1
+          },
+          {
+            "id": 4,
+            "title": "Admin Token Top-Up - POST /api/admin/tokens/topup",
+            "description": "Implement admin-only endpoint to manually add tokens to user accounts.",
+            "details": "Endpoint: POST /api/admin/tokens/topup\nAuth: Required (Admin role only)\nBody:\n{\n  \"userId\": \"uuid\",\n  \"amount\": 5000,\n  \"notes\": \"Customer paid $20 via PayPal\"\n}\n\nResponse:\n{\n  \"success\": true,\n  \"newBalance\": 5850,\n  \"transactionId\": \"uuid\"\n}\n\nImplementation:\n- Check req.user.role === 'admin'\n- Return 403 if not admin\n- Validate userId and amount\n- Use TokenService.credit() with reasonCode: 'admin_topup'\n- Include admin actor info in metadata\n- Include idempotencyKey for safety",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 1
+          },
+          {
+            "id": 5,
+            "title": "Refactor Token Logic - Extract Constants & Move to Controller",
+            "description": "Refactor token management code following best practices: extract hardcoded constants to constant.js, create tokens.controller.js, and move business logic from routes to controller.",
+            "details": "Refactoring tasks:\n1. Extract constants to server/src/utils/constant.js:\n   - TOKEN_TRANSACTION_TYPES: [\"credit\", \"debit\"]\n   - TOKEN_ACTOR_TYPES: [\"system\", \"user\", \"admin\"]\n   - TOKEN_REASON_CODES: [\"signup_bonus\", \"admin_topup\", \"spend_generation\", etc.]\n   \n2. Create server/src/controllers/tokens.controller.js:\n   - Move all route handlers from tokens.route.js\n   - getBalance, getHistory, adminTopUp functions\n   - Keep routes thin, controllers handle business logic\n   \n3. Update TokenService.js:\n   - Import and use constants instead of hardcoded strings\n   - Replace \"credit\"/\"debit\" with TOKEN_TRANSACTION_TYPES\n   - Replace \"system\"/\"admin\" with TOKEN_ACTOR_TYPES\n   \n4. Update tokens.route.js:\n   - Import controller functions\n   - Keep only route definitions and middleware\n   - Remove inline business logic\n\nBest practices applied:\n- Separation of concerns (routes → controllers → services)\n- Constants centralized and reusable\n- Easier maintenance and testing\n- Type safety preparation (for TypeScript migration)",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 1
+          }
+        ]
       },
       {
         "id": 2,
-        "title": "Gemini AI Service Integration",
-        "description": "Build backend integration with Gemini Flash 2.5 Image API, including a service class, error handling, retry logic, and rate limiting.",
-        "details": "- Implement GeminiService.js with methods: generateImage, editImage, composeImages, and styleTransfer.\n- Initialize and authenticate Google Generative AI client.\n- Handle base64 encoding/decoding of images, extract images and metadata from responses.\n- Implement retry logic (exponential backoff, up to 3 attempts).\n- Use express-rate-limit (Gemini: 15/min; overall: per-user and per-IP)\n- Log all errors with full context.\n- Enforce file validation (JPEG/PNG/WebP, <10MB, <4096x4096).\n- Pseudocode for API call with retry:\n```\nAttempt = 0\nwhile Attempt < 3:\n  try {\n    result = GeminiAPI.call(...)\n    return result\n  } catch (err) {\n    if transient && Attempt < 2: Attempt +=1; wait(backoff)\n    else: throw err\n  }\n```",
-        "testStrategy": "Unit test the GeminiService for various scenarios including success, transient failure, and permanent error. Integration test with mock Gemini responses. Load test with rate limit thresholds.",
+        "title": "Gemini Service Integration (Image Generation API)",
+        "description": "Integrate Gemini Flash 2.5 Image API with service class, prompt templates, and token cost management for AI-powered image generation and editing.",
+        "details": "Core AI service integration with Google Generative AI client, prompt engineering, error handling, retry logic, and rate limiting (15 requests/min).",
+        "testStrategy": "",
+        "status": "done",
+        "dependencies": [],
         "priority": "high",
-        "dependencies": [
-          1
-        ],
-        "status": "pending",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Gemini Service Class - Core AI Integration",
+            "description": "Implement GeminiService.js with methods: generateImage (text-to-image), editImage (simple/complex), composeImages (multi-image), styleTransfer. Initialize Google Generative AI client, handle base64 encoding, extract images from responses, implement retry logic with exponential backoff, and enforce rate limiting (15 requests/min for free tier).",
+            "details": "File: server/src/services/gemini/GeminiService.js. Methods: textToImage(), editImageSimple(), editImageComplex(), composeMultipleImages(), styleTransfer(), quickAction(), generateWithText(). Features: Google AI client init, base64 image encoding, response extraction, error handling, retry logic (3 attempts), rate limiting (15/min).",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 2
+          },
+          {
+            "id": 2,
+            "title": "Prompt Engineering Templates",
+            "description": "Create comprehensive prompt templates for common image operations: REMOVE_BACKGROUND, CHANGE_BACKGROUND, FLIP_HORIZONTAL, CHANGE_COLOR, ROTATE_ANGLE, ENHANCE_LIGHTING, ADD_SHADOWS. Include templates for text-to-image, simple/complex edits, composition, style transfer, quick actions, and e-commerce product photography.",
+            "details": "File: server/src/services/gemini/promptTemplates.js. Template categories: textToImage (product_photography, lifestyle, creative), simpleEdit (9 actions), complexEdit (4 scenarios), composition (3 types), styleTransfer (3 modes), quickAction (8 shortcuts), textRendering (logo, banner, social), ecommerce (6 product types).",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 2
+          },
+          {
+            "id": 3,
+            "title": "Token Cost Calculator & Integration",
+            "description": "Implement token cost calculation and validation system. Define cost mapping for operations: text_to_image (100), image_edit_simple (100), image_edit_complex (150), multi_image_composition (200), style_transfer (150), quick_action (100), text_rendering (100). Integrate with TokenService for balance validation and deduction.",
+            "details": "Methods: getOperationCost(operationType), validateBalance(userId, operationType), deductTokens(userId, operationType, referenceId). Integrated into GeminiService.executeWithTokens() method. Uses TokenService.getBalance() for validation and TokenService.debit() for token deduction.",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 2
+          }
+        ]
       },
       {
         "id": 3,
-        "title": "Prompt Engineering and Template System",
-        "description": "Implement prompt templates and template selection logic for image editing operations.",
-        "details": "- Create promptTemplates.js with reusable strings for all core editing types (e.g., REMOVE_BACKGROUND, FLIP_HORIZONTAL).\n- Implement simple selection logic to match incoming editing requests to a template, filling params as needed.\n- Ensure templates meet Gemini best practices (clarity, product photography tone, <500 chars).\n- Sanitize user-generated prompts (remove scripts, validate length).\n- Pseudocode:\n```\nif request.action in templates:\n  prompt = templates[request.action].format(params)\nelse:\n  prompt = sanitize(request.prompt)\n```",
-        "testStrategy": "Unit test all template functions, including parameterized cases. Test prompt sanitization for script/resource injection and edge cases.",
-        "priority": "high",
-        "dependencies": [
-          2
-        ],
-        "status": "pending",
-        "subtasks": []
-      },
-      {
-        "id": 4,
-        "title": "Token Cost Calculator and Deduction Logic",
-        "description": "Design backend logic for calculating operation costs, validating user balance, and deducting tokens.",
-        "details": "- Implement TokenCostCalculator.js with a cost map for each operation type.\n- Expose methods: getOperationCost, validateBalance, deductTokens.\n- Ensure transactional deduction, rolling back on failure.\n- Integrate with logging and consistent error format (INSUFFICIENT_TOKENS, etc.).\n- Link deductions to references (generation, admin action).\n- Pseudocode:\n```\n// validateBalance\nif (getUserBalance(userId) >= cost) return OK; else throw Error('INSUFFICIENT_TOKENS')\n// deductTokens\nBegin Transaction\n  if balance >= cost\n    balance -= cost; logTransaction(...)\n  else throw\nCommit\n```",
-        "testStrategy": "Unit and integration test deduction logic, including successful and insufficient balance cases, concurrency (no double deductions), rollback on failure.",
-        "priority": "high",
+        "title": "Image Generation and Editing HTTP Endpoints (Gemini Flash 2.5 + R2 + Tokens)",
+        "description": "Expose authenticated REST endpoints for text-to-image, editing, composition, style transfer, quick actions, and text rendering using Gemini Flash 2.5 Image API; persist generation records, upload results to R2, and debit tokens only on successful completion.",
+        "details": "Scope\n- Implement production-grade HTTP endpoints that orchestrate: auth, input validation, token pre-checks, Gemini calls via the existing service, R2 uploads, generation record persistence, idempotency, and post-charge on success.\n- Endpoints (suggested paths; adjust to routing conventions):\n  1) POST /api/images/generate            (text-to-image)\n  2) POST /api/images/edit/simple         (resize/crop/rotate/filters)\n  3) POST /api/images/edit/complex        (prompt-based edit with optional mask; in/out-paint)\n  4) POST /api/images/compose             (multi-image layer composition/blend)\n  5) POST /api/images/style-transfer      (apply style from ref image to target)\n  6) POST /api/images/quick-actions       (bg removal, upscale, de-noise, enhance, colorize)\n  7) POST /api/images/text-render         (render text to image or overlay on base)\n\nAuth & Idempotency\n- Require Bearer JWT (or session) via existing auth middleware; reject 401 if missing/invalid.\n- Support Idempotency-Key header; persist a request hash and key to prevent double-charging. On duplicate with same user+endpoint+key, return the prior result.\n\nRequests & Payloads\n- Accept multipart/form-data for image inputs (fields: images[], mask, styleRef, baseImage) and JSON for parameters (prompt, operations[], composition layers, typography options, output format, size WxH, seed, guidance, safety settings).\n- Alternatively accept HTTPS URLs (validated, content-type whitelisting: image/png|jpeg|webp; size limit e.g., 20 MB per asset; total pixels limit e.g., 8 MP per result).\n- Validate: required fields per endpoint, max dimensions, allowed operations, text length limits, operations count, and mutually exclusive fields.\n\nToken Flow\n- Use TokenService (Task 1) for balances and debits. Use Gemini integration cost estimation (Task 2) per request type.\n- Steps:\n  1) Estimate cost with GeminiService. If balance < estimatedCost, 402 Payment Required (include neededTokens).\n  2) Execute Gemini call.\n  3) On successful generation AND successful R2 upload(s), debit the actual cost returned by GeminiService (fallback to estimate if actual absent). On any failure before debit, do not charge.\n  4) Record a ledger referenceId = generationId for traceability.\n- No holds are created; protect against race with idempotency key and transactional debit after success.\n\nPersistence\n- New table: image_generations\n  - id (uuid), user_id, endpoint, request_hash, idempotency_key, model, input_summary (json), status (queued|running|succeeded|failed), cost_tokens, width, height, mime_type, output_keys (json array of R2 keys), duration_ms, error_code, error_message, created_at, completed_at.\n- Create indexes on (user_id, created_at desc), (idempotency_key unique where not null), (request_hash), and (status).\n- Write status transitions: running -> succeeded/failed; always persist a row even on failure.\n\nR2 Storage\n- Use S3-compatible SDK to Cloudflare R2. Bucket: gen-images (configurable). Folder scheme: userId/YYYY/MM/DD/{generationId}/output_{n}.{ext}.\n- Store inputs optionally under .../inputs/ for audit if policy allows (do not expose publicly by default).\n- Outputs are private; respond with time-limited signed URLs (e.g., 1h). Persist R2 keys and also include signed URLs in response.\n- Set proper content-type and cache-control; strip EXIF on outputs for privacy.\n\nEndpoint Behaviors (high level)\n- /generate: prompt, size, style hints, seed. Uses GeminiService.textToImage.\n- /edit/simple: baseImage + operations[] (crop/resize/rotate/brightness/contrast/sharpen). Uses GeminiService.simpleEdit or internal image ops where applicable; still charge per policy.\n- /edit/complex: baseImage (+ optional mask), prompt. Uses GeminiService.complexEdit.\n- /compose: images[] with layers [{index, x, y, opacity, blendMode, z}], canvas size. Uses GeminiService.compose (or merges via service if supported by API).\n- /style-transfer: target, styleRef, strength. Uses GeminiService.styleTransfer.\n- /quick-actions: action in [remove_bg, upscale_2x, denoise, enhance, colorize]. Route to GeminiService.quickAction.\n- /text-render: text, typography (font, weight, color, stroke/shadow), size, optional baseImage and position. Uses GeminiService.textRender.\n\nOperational Concerns\n- Rate limiting per user/IP (e.g., 30 req/min) distinct from GeminiService’s internal rate limit.\n- Timeouts and retries: honor GeminiService retry policy; do not retry uploads more than twice with exponential backoff.\n- Concurrency safety: wrap generation + upload + debit in a logical flow; use DB transaction for: (a) insert running record, (b) after uploads succeed, set succeeded and debit tokens with reference to generationId; if debit fails (e.g., concurrent spend), mark failed, delete outputs, and return 402.\n- Validation errors -> 400; insufficient tokens -> 402; Gemini errors -> 502; upload errors -> 503; idempotent replays -> 200 with stored payload.\n- Logging/metrics: log requestId, userId, endpoint, latency, size, cost, Gemini model; redact prompts if sensitive policy requires.\n\nResponses\n- 200 on success: { generationId, endpoint, outputs: [{url, r2Key, width, height, mimeType}], costTokens, remainingBalance, model, durationMs }\n- 202 variant (optional) if operation pushed to async job (not required now).\n\nSecurity & Compliance\n- Content safety: pipe Gemini safety blocks into 422 with reasons; do not store disallowed content. Enforce allowlist of MIME types and virus/malware scanning if available. Reject URLs from private IP ranges.\n- Access control: users can only read their own generation records/outputs via signed URLs.\n\nImplementation Notes\n- Add a shared validator module (e.g., zod/yup) for schemas per endpoint.\n- Implement an IdempotencyStore backed by image_generations (idempotency_key unique per user+endpoint) and payload hash (SHA-256 of normalized inputs) to detect replays.\n- Provide a Costing module that maps endpoints to GeminiService cost calculators (Task 2) and normalizes token units.\n- Consider thumbnail creation (e.g., 512px) for faster listing in future features; store as additional R2 key.\n",
+        "testStrategy": "Unit\n- Cost estimation: for each endpoint, verify the Costing module calls the correct GeminiService estimator and returns expected token values.\n- Token checks: if balance < estimate, return 402 without invoking GeminiService.\n- Debit logic: debit occurs only after both generation and R2 upload succeed; on failures, ensure no debit and status=failed.\n- Idempotency: repeated request with same Idempotency-Key and body returns previous result and creates only one ledger debit and one generation row.\n\nIntegration (with mocks for GeminiService and R2)\n- Happy paths for all endpoints: verify HTTP 200, response schema, image_generations row (status=succeeded), R2 putObject called for each output, TokenService.debit called once with expected amount, and remainingBalance returned.\n- Error paths: GeminiService error -> 502; R2 upload failure -> 503 and no debit; insufficient tokens -> 402; invalid inputs -> 400 with detailed field errors; safety block -> 422 and no debit.\n- Concurrency: fire two identical requests concurrently with same Idempotency-Key; assert only one generation executes and one debit occurs. Fire two different keys concurrently ensuring debits are independent but prevented from overdraft by TokenService.\n- Large input constraints: reject images >20MB or outputs >8MP with 400.\n\nDatabase\n- image_generations schema migration runs successfully; unique index on idempotency_key enforced; verify status transitions and auditing fields populated.\n\nE2E (optional if staging available)\n- Run against staging Gemini credentials with small-size outputs; confirm visual outputs uploaded to R2 and URLs resolve; check ledger entries tied to generationId and balances decrease by expected tokens.",
+        "status": "done",
         "dependencies": [
           1,
           2
         ],
-        "status": "pending",
-        "subtasks": []
-      },
-      {
-        "id": 5,
-        "title": "Image Generation & Editing Endpoints",
-        "description": "Implement all /api/generate endpoints for text-to-image, editing (simple and complex), composition, style transfer, and quick actions.",
-        "details": "- Build API endpoints as specified, calling GeminiService methods and using prompt templates and cost calculator.\n- Validate multipart image uploads for size, type, and dimensions.\n- For each request:\n  1. Validate balance\n  2. Create generation record (status: processing)\n  3. Enhance/sanitize prompt\n  4. Call Gemini\n  5. Upload result to storage\n  6. Update generation record (status, image reference)\n  7. Deduct tokens\n- For quick actions, use template mapping to construct prompt automatically.\n- All endpoints must return the specified response or consistent error format.\n- Soft watermark all outputs (SynthID, if API supports; else skip for MVP).\n- Pseudocode:\n```\nif validateInput(request):\n  checkBalance(userId, operationType)\n  createGeneration(status='processing')\n  prompt = getPrompt(request)\n  image = GeminiService.run(...)\n  upload(image); updateGeneration(status='completed')\n  deductTokens(userId, operationType, generationId)\n  return {imageUrl, tokensUsed, ...}\nelse return error",
-        "testStrategy": "Full integration tests for all endpoints using real/mocked GeminiService. Test file validation errors, token deductions, prompt construction, and error responses. Scenario testing for success/failure.\nLoad test endpoints for rate limiting.",
         "priority": "high",
-        "dependencies": [
-          2,
-          3,
-          4
-        ],
-        "status": "pending",
-        "subtasks": []
-      },
-      {
-        "id": 6,
-        "title": "Project Management Endpoints (CRUD)",
-        "description": "Implement backend endpoints for users to create, manage, and organize projects and link generations.",
-        "details": "- Build REST endpoints: list, create, update, delete (soft), and details for user projects (/api/projects).\n- Ensure auth and ACL: only allow user to manage their own projects.\n- For details endpoint, include all linked generations and aggregate stats (tokens spent, total generations).\n- Image counts and project linking should update dynamically as generations are added.\n- Soft delete via status='deleted', no data loss.\n- Pseudocode:\n```\nProjectController:\n  createProject(user, body): insert project(userId, ...)\n  getProjects(user, filters): findAll by userId\n  getProjectDetails(user, projectId): project + generations\n  updateProject(user, pid, ...): patch/validate ownership\n  deleteProject(user, pid): set status=deleted\n```",
-        "testStrategy": "Integration test all CRUD endpoints. Test authorization, project creation, linking/delinking generations, soft-delete logic, and stats updates. Verify foreign key and ownership constraints.",
-        "priority": "medium",
-        "dependencies": [
-          5
-        ],
-        "status": "pending",
-        "subtasks": []
-      },
-      {
-        "id": 7,
-        "title": "Generation and Usage History APIs",
-        "description": "Implement endpoints for listing generations, filtering, and retrieving generation/generation history details.",
-        "details": "- Implement GET /api/generations (filters: projectId, operationType, status, pagination, sort) and GET /api/generations/:id.\n- Link query to logged-in user only.\n- Support filtering, sorting by time/tokens.\n- Generation details should include all metadata and status.\n- Pagination and efficient DB queries for scalability.\n- Consistent error responses for all error scenarios.\n- Pseudocode:\n```\ngetGenerations(user, filters): select * where userId=... limit/offset orderBy\ngetGenerationDetails(user, id): select where userId/id\n```",
-        "testStrategy": "Integration tests for listing and retrieving generations. Test all query params, sorting, filters, and edge cases (no results, not found, unauthorized). Load test for pagination.",
-        "priority": "medium",
-        "dependencies": [
-          5,
-          6
-        ],
-        "status": "pending",
-        "subtasks": []
-      },
-      {
-        "id": 8,
-        "title": "Admin Panel APIs (Dashboard & User Management)",
-        "description": "Implement minimal admin endpoints for system metrics and user management with strict admin role enforcement.",
-        "details": "- Build GET /api/admin/stats for global aggregate stats, and GET /api/admin/users for user search/pagination with balance data.\n- Enforce role=admin for all access (middleware/auth checks).\n- All queries should be efficient and paginated.\n- Ensure metrics are accurate and update in real time, deriving from reliable underlying tables (users, tokens, generations).\n- Use consistent error handling for admin endpoints.\n- Structure logging for all admin actions.\n- Pseudocode:\n```\nif user.role != 'admin': reject\ngetStats(): sum tables\ngetUsers(query): paginated search, join on balances\n```",
-        "testStrategy": "Integration and permission tests for all admin endpoints. Directly verify output with underlying DB. Test attempted access by non-admin users.",
-        "priority": "medium",
-        "dependencies": [
-          1,
-          4
-        ],
-        "status": "pending",
-        "subtasks": []
-      },
-      {
-        "id": 9,
-        "title": "Token Management System",
-        "description": "Implement complete token management system including signup bonus, balance API, transaction history, and admin top-up functionality. This is the foundation for all paid features.",
-        "details": "Components to build:\n1. Signup bonus trigger (1,000 tokens on registration)\n2. GET /api/tokens/balance endpoint\n3. GET /api/tokens/history endpoint with pagination\n4. POST /api/admin/tokens/topup endpoint (admin only)\n5. TokenService class for balance operations\n6. Database transactions for token consistency\n7. Validation to prevent negative balances",
-        "testStrategy": "",
-        "status": "pending",
-        "dependencies": [],
-        "priority": "high",
-        "subtasks": []
-      },
-      {
-        "id": 10,
-        "title": "Gemini Service Integration",
-        "description": "Build core Gemini AI service with prompt engineering templates for common image operations. This is the heart of the AI functionality.",
-        "details": "Components:\n1. GeminiService.js - main service class\n2. Initialize Google Generative AI client\n3. Methods: generateImage(), editImage(), composeImages(), styleTransfer()\n4. promptTemplates.js - pre-built prompts for common operations\n5. Error handling with retry logic\n6. Rate limiting (15 req/min for free tier)\n7. Image encoding/decoding (base64)\n8. Extract image from Gemini response",
-        "testStrategy": "",
-        "status": "pending",
-        "dependencies": [],
-        "priority": "high",
-        "subtasks": []
-      },
-      {
-        "id": 11,
-        "title": "Image Generation Endpoints",
-        "description": "Implement all core image generation and editing API endpoints that call Gemini service and handle token deduction.",
-        "details": "Endpoints to build:\n1. POST /api/generate/text-to-image (100 tokens)\n2. POST /api/generate/edit-simple (100 tokens)\n3. POST /api/generate/edit-complex (150 tokens)\n4. POST /api/generate/compose (200 tokens)\n5. POST /api/generate/style-transfer (150 tokens)\n\nEach endpoint must:\n- Validate token balance\n- Create generation record\n- Call Gemini API\n- Upload result to storage\n- Deduct tokens\n- Return image URL + metadata",
-        "testStrategy": "",
-        "status": "pending",
-        "dependencies": [],
-        "priority": "high",
-        "subtasks": []
-      },
-      {
-        "id": 12,
-        "title": "Quick Actions Feature",
-        "description": "Build convenient quick action shortcuts for common operations with pre-optimized prompts (remove background, flip, enhance lighting, etc).",
-        "details": "Build:\n1. POST /api/generate/quick-action endpoint\n2. Action mapping: remove_background, flip_horizontal, enhance_lighting, add_shadows\n3. Pre-optimized prompt templates for each action\n4. All actions cost 100 tokens\n5. This is a wrapper around edit-simple with preset prompts",
-        "testStrategy": "",
-        "status": "pending",
-        "dependencies": [],
-        "priority": "medium",
-        "subtasks": []
-      },
-      {
-        "id": 13,
-        "title": "Project Management System",
-        "description": "Allow users to organize their image generations into projects for better workflow management.",
-        "details": "Build CRUD endpoints:\n1. POST /api/projects - Create project\n2. GET /api/projects - List user projects with filters\n3. GET /api/projects/:id - Get project details with generations\n4. PATCH /api/projects/:id - Update project\n5. DELETE /api/projects/:id - Soft delete\n\nFeatures:\n- Link generations to projects\n- Show generation count per project\n- Calculate total tokens spent per project\n- Filter by status (active/archived/deleted)",
-        "testStrategy": "",
-        "status": "pending",
-        "dependencies": [],
-        "priority": "medium",
-        "subtasks": []
-      },
-      {
-        "id": 14,
-        "title": "Generation History & Tracking",
-        "description": "Build endpoints to view and filter all past image generation operations with detailed metadata.",
-        "details": "Build:\n1. GET /api/generations - List with filters\n   - Filter by: projectId, operationType, status\n   - Sort by: createdAt, tokensUsed\n   - Pagination support\n2. GET /api/generations/:id - Get full generation details\n\nResponse includes:\n- Operation type and prompt used\n- Input/output image URLs\n- Tokens used\n- Processing time\n- Status and error messages (if failed)\n- AI metadata",
-        "testStrategy": "",
-        "status": "pending",
-        "dependencies": [],
-        "priority": "medium",
-        "subtasks": []
-      },
-      {
-        "id": 15,
-        "title": "Conversational Editing Feature",
-        "description": "Enable multi-turn iterative image editing where users can refine results through conversation (e.g., 'make it brighter', 'now add shadows').",
-        "details": "Build:\n1. POST /api/conversation/start - Start editing session\n2. POST /api/conversation/:id/continue - Refine previous result\n3. GET /api/conversation/:id - Get conversation history\n\nTechnical:\n- Track conversation chains (parentGenerationId)\n- Use last output as next input\n- Each iteration costs 100 tokens\n- Show version history (v1, v2, v3...)\n- Link all generations in conversation",
-        "testStrategy": "",
-        "status": "pending",
-        "dependencies": [],
-        "priority": "low",
-        "subtasks": []
-      },
-      {
-        "id": 16,
-        "title": "Admin Panel & Management",
-        "description": "Build admin dashboard and tools for managing users, viewing stats, and manually adding tokens to user accounts.",
-        "details": "Build:\n1. GET /api/admin/stats - Platform statistics\n   - Total users, active users\n   - Total generations, tokens distributed/used\n   - Average tokens per user\n2. GET /api/admin/users - User management with search\n3. Token top-up already in Feature 1\n\nAdd middleware:\n- Admin role verification\n- Audit logging for admin actions",
-        "testStrategy": "",
-        "status": "pending",
-        "dependencies": [],
-        "priority": "low",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "GET /api/generate/operations - List operations with pricing",
+            "description": "Implement endpoint to list all available image generation operations with token costs fetched from tokenPricing table. Public endpoint (no auth required).",
+            "details": "",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 3
+          },
+          {
+            "id": 2,
+            "title": "GET /api/generate/templates - List prompt templates",
+            "description": "Implement endpoint to list all available prompt templates for simple edits, complex edits, composition, and style transfer. Public endpoint (no auth required).",
+            "details": "",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 3
+          },
+          {
+            "id": 3,
+            "title": "POST /api/generate/text-to-image - Text-to-image generation (100 tokens)",
+            "description": "Implement endpoint for generating images from text prompts. Validates token balance, creates generation record, enhances prompt with templates, calls Gemini API, uploads result to R2, deducts tokens, returns imageUrl and metadata. Supports aspectRatio and style options.",
+            "details": "",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 3
+          },
+          {
+            "id": 4,
+            "title": "POST /api/generate/edit-simple - Simple image editing (100 tokens)",
+            "description": "Implement endpoint for simple image edits using multipart file upload. Supports template-based edits (remove_background, flip_horizontal, enhance_lighting, etc.) or custom prompts. Uploads input image to storage for tracking, processes with Gemini, uploads output, deducts 100 tokens.",
+            "details": "",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 3
+          },
+          {
+            "id": 5,
+            "title": "POST /api/generate/edit-complex - Complex image editing (150 tokens)",
+            "description": "Implement endpoint for complex image edits requiring multiple transformations or advanced operations. Uses scenario-based prompts with lower temperature (0.6) for more control. Costs 150 tokens due to increased complexity.",
+            "details": "",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 3
+          },
+          {
+            "id": 6,
+            "title": "POST /api/generate/compose - Multi-image composition (200 tokens)",
+            "description": "Implement endpoint for composing 2-3 images into a single scene. Accepts multiple image files via multipart upload, combines them using Gemini API with composition prompts, uploads result to storage. Deducts 200 tokens due to multi-image processing.",
+            "details": "",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 3
+          },
+          {
+            "id": 7,
+            "title": "POST /api/generate/style-transfer - Style transfer (150 tokens)",
+            "description": "Implement endpoint for transferring artistic style from one image to another. Accepts contentImage and styleImage via multipart upload, applies style transfer using Gemini, returns stylized result. Costs 150 tokens.",
+            "details": "",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 3
+          },
+          {
+            "id": 8,
+            "title": "POST /api/generate/quick-action - Quick action shortcuts (100 tokens)",
+            "description": "Implement endpoint for predefined quick actions (remove_background, flip_horizontal, flip_vertical, enhance_lighting, add_shadows, center_product, sharpen_details, enhance_colors). Maps action names to prompt templates. Provides UI-friendly shortcuts for common operations.",
+            "details": "",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 3
+          },
+          {
+            "id": 9,
+            "title": "POST /api/generate/text-rendering - Generate images with text (100 tokens)",
+            "description": "Implement endpoint for generating images with embedded text. Accepts text content (max 200 chars) and design prompt/style. Useful for creating social media graphics, banners, or product images with text overlays. Costs 100 tokens.",
+            "details": "",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 3
+          }
+        ]
       }
     ],
     "metadata": {
       "created": "2025-10-25T08:23:46.343Z",
-      "updated": "2025-10-25T08:27:33.206Z",
+      "updated": "2025-10-26T07:09:10.236Z",
       "description": "Tasks for core-features context"
     }
   }
