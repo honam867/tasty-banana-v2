@@ -7,9 +7,6 @@ import { body, validationResult } from 'express-validator';
 import fs from 'fs';
 import {
   GEMINI_ASPECT_RATIOS,
-  GEMINI_TEMPLATES,
-  GEMINI_QUICK_ACTIONS,
-  GEMINI_DESIGN_CATEGORIES,
   GEMINI_LIMITS,
   IMAGE_REFERENCE_TYPES_ARRAY
 } from '../utils/constant.js';
@@ -34,33 +31,7 @@ export const validateAmount = (amount) => {
   return amount;
 };
 
-/**
- * Validate reason code
- */
-// const VALID_REASON_CODES = [
-//   "signup_bonus",
-//   "admin_topup",
-//   IMAGE_OPERATION_TYPES.TEXT_TO_IMAGE,
-//   IMAGE_OPERATION_TYPES.IMAGE_EDIT_SIMPLE,
-//   IMAGE_OPERATION_TYPES.IMAGE_EDIT_COMPLEX,
-//   IMAGE_OPERATION_TYPES.MULTI_IMAGE_COMPOSITION,
-//   IMAGE_OPERATION_TYPES.STYLE_TRANSFER,
-//   "conversational_edit",
-//   IMAGE_OPERATION_TYPES.TEXT_RENDERING,
-//   IMAGE_OPERATION_TYPES.CUSTOM_PROMPT,
-//   "refund",
-//   "adjustment",
-// ];
 
-// export const validateReasonCode = (code) => {
-//   if (!code || typeof code !== "string") {
-//     throw new Error("Reason code is required");
-//   }
-//   // if (!VALID_REASON_CODES.includes(code)) {
-//   //   throw new Error(`Invalid reason code: ${code}`);
-//   // }
-//   return code;
-// };
 
 /**
  * Validate idempotency key format
@@ -210,102 +181,6 @@ export const validateImageReference = [
     .optional({ values: 'falsy' })
     .isUUID()
     .withMessage('Invalid project ID')
-];
-
-/**
- * Validate simple edit request
- */
-export const validateSimpleEdit = [
-  body('prompt')
-    .optional()
-    .isLength({ 
-      min: GEMINI_LIMITS.PROMPT_MIN_LENGTH, 
-      max: GEMINI_LIMITS.PROMPT_MAX_LENGTH_SHORT 
-    })
-    .withMessage(`Prompt must be ${GEMINI_LIMITS.PROMPT_MIN_LENGTH}-${GEMINI_LIMITS.PROMPT_MAX_LENGTH_SHORT} characters`),
-  body('template')
-    .optional()
-    .isIn(GEMINI_TEMPLATES.SIMPLE)
-    .withMessage(`Invalid template. Allowed: ${GEMINI_TEMPLATES.SIMPLE.join(', ')}`),
-  body('projectId')
-    .optional()
-    .isUUID()
-    .withMessage('Invalid project ID')
-];
-
-/**
- * Validate complex edit request
- */
-export const validateComplexEdit = [
-  body('prompt')
-    .notEmpty()
-    .withMessage('Complex edit prompt is required'),
-  body('scenario')
-    .optional()
-    .isIn(GEMINI_TEMPLATES.COMPLEX)
-    .withMessage(`Invalid scenario. Allowed: ${GEMINI_TEMPLATES.COMPLEX.join(', ')}`)
-];
-
-/**
- * Validate composition request
- */
-export const validateComposition = [
-  body('prompt')
-    .notEmpty()
-    .withMessage('Composition prompt is required'),
-  body('scenario')
-    .optional()
-    .isIn(GEMINI_TEMPLATES.COMPOSITION)
-    .withMessage(`Invalid scenario. Allowed: ${GEMINI_TEMPLATES.COMPOSITION.join(', ')}`)
-];
-
-/**
- * Validate style transfer request
- */
-export const validateStyleTransfer = [
-  body('scenario')
-    .optional()
-    .isIn(GEMINI_TEMPLATES.STYLE_TRANSFER)
-    .withMessage(`Invalid scenario. Allowed: ${GEMINI_TEMPLATES.STYLE_TRANSFER.join(', ')}`),
-  body('customPrompt')
-    .optional()
-];
-
-/**
- * Validate quick action request
- */
-export const validateQuickAction = [
-  body('action')
-    .isIn(GEMINI_QUICK_ACTIONS)
-    .withMessage(`Valid action is required. Allowed: ${GEMINI_QUICK_ACTIONS.join(', ')}`),
-  body('customPrompt')
-    .optional()
-    .isLength({ max: GEMINI_LIMITS.CUSTOM_PROMPT_MAX_LENGTH })
-    .withMessage(`Custom prompt must be less than ${GEMINI_LIMITS.CUSTOM_PROMPT_MAX_LENGTH} characters`),
-  body('projectId')
-    .optional()
-    .isUUID()
-    .withMessage('Invalid project ID')
-];
-
-/**
- * Validate text rendering request
- */
-export const validateTextRendering = [
-  body('text')
-    .notEmpty()
-    .withMessage('Text content is required'),
-  body('designPrompt')
-    .notEmpty()
-    .withMessage('Design prompt is required'),
-  body('designStyle.category')
-    .optional()
-    .isIn(GEMINI_DESIGN_CATEGORIES)
-    .withMessage(`Invalid design category. Allowed: ${GEMINI_DESIGN_CATEGORIES.join(', ')}`),
-  body('designStyle.style')
-    .optional(),
-  body('designStyle.description')
-    .optional()
 ];
 
 /**

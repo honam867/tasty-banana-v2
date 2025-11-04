@@ -4,7 +4,6 @@ import { verifyToken } from "../middlewares/tokenHandler.js";
 import {
   getBalance,
   getHistory,
-  adminTopUp,
 } from "../controllers/tokens.controller.js";
 
 const router = express.Router();
@@ -109,49 +108,8 @@ router.get("/balance", verifyToken, asyncHandler(getBalance));
 router.get("/history", verifyToken, asyncHandler(getHistory));
 
 /**
- * @swagger
- * /tokens/admin/topup:
- *   post:
- *     summary: Admin top-up user tokens
- *     tags: [Tokens]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - userId
- *               - amount
- *             properties:
- *               userId:
- *                 type: string
- *                 example: user-id-123
- *               amount:
- *                 type: integer
- *                 example: 500
- *               notes:
- *                 type: string
- *                 example: Monthly bonus
- *               idempotencyKey:
- *                 type: string
- *                 example: unique-key-123
- *     responses:
- *       200:
- *         description: Top-up successful
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Success'
- *       401:
- *         description: Unauthorized
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
+ * Note: Admin token operations have been moved to /api/admin/users/:userId/tokens/*
+ * This keeps user-facing endpoints separate from admin operations
  */
-router.post("/admin/topup", verifyToken, asyncHandler(adminTopUp));
 
 export default router;

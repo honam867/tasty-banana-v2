@@ -1,20 +1,7 @@
 import TokenService from "../services/tokens/TokenService.js";
-import {
-  successResponse,
-  errorResponse,
-} from "../middlewares/errorHandler.js";
-import {
-  validatePagination,
-  validateAmount,
-  validateUserId,
-  validateIdempotencyKey,
-} from "../middlewares/validators.js";
-import {
-  TOKEN_TRANSACTION_TYPES,
-  TOKEN_ACTOR_TYPES,
-  TOKEN_REASON_CODES,
-  ROLE,
-} from "../utils/constant.js";
+import { successResponse, errorResponse } from "../middlewares/errorHandler.js";
+import { validatePagination } from "../middlewares/validators.js";
+import { TOKEN_TRANSACTION_TYPES } from "../utils/constant.js";
 
 /**
  * Get authenticated user's token balance
@@ -49,14 +36,12 @@ export const getHistory = async (req, res) => {
 
   // Validate type if provided
   if (type && !Object.values(TOKEN_TRANSACTION_TYPES).includes(type)) {
-    return res
-      .status(400)
-      .json(
-        errorResponse({
-          code: "INVALID_TYPE",
-          message: `Type must be '${TOKEN_TRANSACTION_TYPES.CREDIT}' or '${TOKEN_TRANSACTION_TYPES.DEBIT}'`,
-        })
-      );
+    return res.status(400).json(
+      errorResponse({
+        code: "INVALID_TYPE",
+        message: `Type must be '${TOKEN_TRANSACTION_TYPES.CREDIT}' or '${TOKEN_TRANSACTION_TYPES.DEBIT}'`,
+      })
+    );
   }
 
   const history = await TokenService.getHistory(userId, {
@@ -79,64 +64,8 @@ export const getHistory = async (req, res) => {
 };
 
 /**
- * Admin-only endpoint to add tokens to a user account
- * POST /api/admin/tokens/topup
- * Body: { userId, amount, notes, idempotencyKey (optional) }
+ * Note: Admin token operations have been moved to /api/admin/users/:userId/tokens/*
+ * See: controllers/admin/users.controller.js
+ * - creditTokens() - Credit tokens to user
+ * - debitTokens() - Debit tokens from user
  */
-export const adminTopUp = async (req, res) => {
-  // Check if user is admin
-  if (req.user.role !== ROLE.ADMIN) {
-    return res.status(403).json(
-      errorResponse({
-        code: "FORBIDDEN",
-        message: "Admin access required",
-      })
-    );
-  }
-
-  const { userId, amount, notes, idempotencyKey } = req.body;
-
-  // Validate inputs
-  try {
-    validateUserId(userId);
-    validateAmount(amount);
-    if (idempotencyKey) {
-      validateIdempotencyKey(idempotencyKey);
-    }
-  } catch (validationError) {
-    return res.status(400).json(
-      errorResponse({
-        code: "VALIDATION_ERROR",
-        message: validationError.message,
-      })
-    );
-  }
-
-  // Credit tokens
-  const result = await TokenService.credit(userId, amount, {
-    reasonCode: TOKEN_REASON_CODES.ADMIN_TOPUP,
-    idempotencyKey: idempotencyKey || `admin-topup:${userId}:${Date.now()}`,
-    actor: {
-      type: TOKEN_ACTOR_TYPES.ADMIN,
-      id: req.user.id,
-    },
-    metadata: {
-      notes: notes || "",
-      adminEmail: req.user.email,
-      ip: req.ip,
-    },
-  });
-
-  res.json(
-    successResponse(
-      {
-        userId,
-        newBalance: result.balance,
-        amountAdded: amount,
-        transactionId: result.transactionId,
-        idempotent: result.idempotent || false,
-      },
-      "Tokens added successfully"
-    )
-  );
-};

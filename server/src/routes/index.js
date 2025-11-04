@@ -10,6 +10,7 @@ import styleLibrary from "./styleLibrary.route.js";
 import hint from "./hint.route.js";
 import operations from "./operations.route.js";
 import generations from "./generations.route.js";
+import adminUsers from "./admin/users.route.js";
 import { ROUTES } from "../utils/routes.js";
 
 function router(app) {
@@ -36,6 +37,9 @@ function router(app) {
   app.use("/api/prompt-templates", promptTemplate);
   app.use("/api/style-library", styleLibrary);
   app.use("/api/hints", hint);
+  
+  // Admin Routes
+  app.use("/api/admin/users", adminUsers);
 }
 
 export default router;

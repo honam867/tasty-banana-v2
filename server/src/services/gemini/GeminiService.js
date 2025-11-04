@@ -1,7 +1,12 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import fs from "fs";
 import TokenService from "../tokens/TokenService.js";
-import { GEMINI_CONFIG, IMAGE_OPERATION_TYPES } from "../../utils/constant.js";
+import { 
+  GEMINI_CONFIG, 
+  IMAGE_OPERATION_TYPES,
+  TOKEN_REASON_CODES,
+  TOKEN_ACTOR_TYPES 
+} from "../../utils/constant.js";
 
 /**
  * Gemini Flash 2.5 Image Service
@@ -52,14 +57,14 @@ class GeminiService {
 
       // Deduct tokens (generation record is managed by controller)
       const newBalance = await TokenService.debit(userId, tokenCost, {
-        reasonCode: "spend_generation",
+        reasonCode: TOKEN_REASON_CODES.SPEND_GENERATION,
         metadata: {
           operationType: operationTypeName,
           generationId: options.metadata?.generationId,
           processingTimeMs: processingTime,
           ...options.metadata,
         },
-        actor: { type: "user", id: userId },
+        actor: { type: TOKEN_ACTOR_TYPES.USER, id: userId },
       });
 
       return {
@@ -78,7 +83,7 @@ class GeminiService {
   /**
    * Execute operation with exponential backoff retry logic
    */
-  async executeWithRetry(operationFn, operationType, maxAttempts = 3) {
+  async executeWithRetry(operationFn, operationType, maxAttempts = GEMINI_CONFIG.MAX_RETRY_ATTEMPTS) {
     let lastError;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -225,16 +230,6 @@ class GeminiService {
       bmp: "image/bmp",
     };
     return mimeTypes[ext] || "image/jpeg";
-  }
-
-  enhancePromptForProduct(userPrompt) {
-    return `${userPrompt}
-    
-    Professional product photography, high quality, sharp focus, clean composition,
-    well-lit, commercial-grade image. Show product clearly and attractively.
-    Suitable for e-commerce listings and marketing materials.
-    Clean, professional result with excellent lighting and composition.
-    `.trim();
   }
 
   buildGenerationConfig(options = {}) {

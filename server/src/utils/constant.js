@@ -47,14 +47,6 @@ export const TOKEN_REASON_CODES = {
   SIGNUP_BONUS: "signup_bonus",
   ADMIN_TOPUP: "admin_topup",
   SPEND_GENERATION: "spend_generation",
-  TEXT_TO_IMAGE: "text_to_image",
-  IMAGE_EDIT_SIMPLE: "image_edit_simple",
-  IMAGE_EDIT_COMPLEX: "image_edit_complex",
-  MULTI_IMAGE_COMPOSITION: "multi_image_composition",
-  STYLE_TRANSFER: "style_transfer",
-  QUICK_ACTION: "quick_action",
-  TEXT_RENDERING: "text_rendering",
-  CUSTOM_PROMPT: "custom_prompt",
 };
 
 // Token Pagination Defaults
@@ -64,23 +56,10 @@ export const TOKEN_PAGINATION = {
   MIN_LIMIT: 1,
 };
 
-export const DATE = {
-  DAYS: "days",
-  WEEKS: "weeks",
-  MONTHS: "months",
-};
-
 // Image Generation Operation Types
 export const IMAGE_OPERATION_TYPES = {
   TEXT_TO_IMAGE: "text_to_image",
   IMAGE_REFERENCE: "image_reference",
-  IMAGE_EDIT_SIMPLE: "image_edit_simple",
-  IMAGE_EDIT_COMPLEX: "image_edit_complex",
-  MULTI_IMAGE_COMPOSITION: "multi_image_composition",
-  STYLE_TRANSFER: "style_transfer",
-  QUICK_ACTION: "quick_action",
-  TEXT_RENDERING: "text_rendering",
-  CUSTOM_PROMPT: "custom_prompt",
 };
 
 // Image Reference Types
@@ -94,52 +73,6 @@ export const IMAGE_REFERENCE_TYPES_ARRAY = ['subject', 'face', 'full_image'];
 
 // Gemini Image Generation Constants
 export const GEMINI_ASPECT_RATIOS = ['1:1', '16:9', '9:16', '4:3', '3:4'];
-
-export const GEMINI_TEMPLATES = {
-  SIMPLE: [
-    'remove_background',
-    'flip_horizontal',
-    'flip_vertical',
-    'enhance_lighting',
-    'add_shadows',
-    'center_product',
-    'sharpen_details',
-    'enhance_colors'
-  ],
-  COMPLEX: [
-    'complete_transformation',
-    'background_scene_change',
-    'lighting_enhancement',
-    'color_correction'
-  ],
-  COMPOSITION: [
-    'product_lifestyle',
-    'product_grouping',
-    'scene_creation'
-  ],
-  STYLE_TRANSFER: [
-    'artistic_style',
-    'mood_transfer',
-    'aesthetic_enhancement'
-  ]
-};
-
-export const GEMINI_QUICK_ACTIONS = [
-  'remove_background',
-  'flip_horizontal',
-  'flip_vertical',
-  'enhance_lighting',
-  'add_shadows',
-  'center_product',
-  'sharpen_details',
-  'enhance_colors'
-];
-
-export const GEMINI_DESIGN_CATEGORIES = [
-  'logo_design',
-  'banner_design',
-  'social_media'
-];
 
 // Gemini Error Codes
 export const GEMINI_ERRORS = {
@@ -167,17 +100,11 @@ export const GENERATION_STATUS = {
 export const UPLOAD_PURPOSE = {
   GENERATION_OUTPUT: 'generation_output',
   GENERATION_INPUT: 'generation_input',
-  INIT: 'init',
-  MASK: 'mask',
-  REFERENCE: 'reference',
-  ATTACHMENT: 'attachment'
 };
 
 // Storage Provider Types
 export const STORAGE_PROVIDER = {
   R2: 'r2',
-  S3: 's3',
-  LOCAL: 'local'
 };
 
 // Temporary File Configuration
@@ -186,9 +113,6 @@ export const TEMP_FILE_CONFIG = {
   CLEANUP_CRON: process.env.TEMP_FILE_CLEANUP_CRON || '*/5 * * * *', // Run cleanup every 5 minutes (cron syntax)
   PURPOSE: {
     REFERENCE_IMAGE: 'reference_image',
-    STYLE_IMAGE: 'style_image',
-    COMPOSE_IMAGE: 'compose_image',
-    EDIT_IMAGE: 'edit_image'
   }
 };
 
@@ -198,9 +122,6 @@ export const GEMINI_CONFIG = {
   DEFAULT_TEMPERATURE: 0.7,
   DEFAULT_TOP_K: 40,
   DEFAULT_TOP_P: 0.95,
-  COMPLEX_EDIT_TEMPERATURE: 0.6,
-  COMPLEX_EDIT_TOP_K: 35,
-  COMPLEX_EDIT_TOP_P: 0.92,
   RATE_LIMIT_WINDOW_MS: 60000, // 1 minute
   MAX_REQUESTS_PER_WINDOW: 15,
   MAX_RETRY_ATTEMPTS: 3
@@ -211,7 +132,6 @@ export const GEMINI_LIMITS = {
   PROMPT_MAX_LENGTH: 2000,
   PROMPT_MAX_LENGTH_SHORT: 1000,
   CUSTOM_PROMPT_MAX_LENGTH: 500,
-  TEXT_MAX_LENGTH: 200,
   FILE_SIZE_MAX: 10 * 1024 * 1024, // 10MB
   FILE_COUNT_MAX: 5,
   IMAGE_WIDTH_MAX: 4096,
