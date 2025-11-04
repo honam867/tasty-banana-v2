@@ -1,0 +1,77 @@
+@import "tailwindcss";
+
+@theme {
+  /* Fonts */
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+
+  /* Base colors */
+  --color-background: oklch(1 0 0);
+  --color-foreground: oklch(0.17 0 0);
+  
+  /* Card */
+  --color-card: oklch(1 0 0);
+  --color-card-foreground: oklch(0.17 0 0);
+  
+  /* Primary */
+  --color-primary: oklch(0.17 0 0);
+  --color-primary-foreground: oklch(0.98 0 0);
+  
+  /* Secondary */
+  --color-secondary: oklch(0.96 0 0);
+  --color-secondary-foreground: oklch(0.17 0 0);
+  
+  /* Muted */
+  --color-muted: oklch(0.96 0 0);
+  --color-muted-foreground: oklch(0.46 0 0);
+  
+  /* Accent */
+  --color-accent: oklch(0.96 0 0);
+  --color-accent-foreground: oklch(0.17 0 0);
+  
+  /* Destructive */
+  --color-destructive: oklch(0.6 0.2 25);
+  --color-destructive-foreground: oklch(0.98 0 0);
+  
+  /* Border & Input */
+  --color-border: oklch(0.9 0 0);
+  --color-input: oklch(0.9 0 0);
+  --color-ring: oklch(0.17 0 0);
+  
+  /* Radius */
+  --radius: 0.5rem;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  @theme {
+    --color-background: oklch(0.15 0 0);
+    --color-foreground: oklch(0.98 0 0);
+    --color-card: oklch(0.15 0 0);
+    --color-card-foreground: oklch(0.98 0 0);
+    --color-primary: oklch(0.98 0 0);
+    --color-primary-foreground: oklch(0.17 0 0);
+    --color-secondary: oklch(0.2 0 0);
+    --color-secondary-foreground: oklch(0.98 0 0);
+    --color-muted: oklch(0.2 0 0);
+    --color-muted-foreground: oklch(0.65 0 0);
+    --color-accent: oklch(0.2 0 0);
+    --color-accent-foreground: oklch(0.98 0 0);
+    --color-destructive: oklch(0.35 0.2 25);
+    --color-destructive-foreground: oklch(0.98 0 0);
+    --color-border: oklch(0.2 0 0);
+    --color-input: oklch(0.2 0 0);
+    --color-ring: oklch(0.84 0 0);
+  }
+}
