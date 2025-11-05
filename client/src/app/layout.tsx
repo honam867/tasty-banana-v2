@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { WebSocketProvider } from "@/contexts/WebSocketContext";
 
 const jakarta = Plus_Jakarta_Sans({
   variable: "--font-jakarta",
@@ -14,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Banana AI Studio",
-  description: "Create stunning AI-generated visuals with liquid glass aesthetics",
+  title: "Banana AI Studio - Confident AI Images",
+  description: "Get confident AI images with optimized prompts per model",
 };
 
 export default function RootLayout({
@@ -28,7 +30,11 @@ export default function RootLayout({
       <body
         className={`${jakarta.variable} ${geistMono.variable} font-sans antialiased`}
       >
-        {children}
+        <AuthProvider>
+          <WebSocketProvider>
+            {children}
+          </WebSocketProvider>
+        </AuthProvider>
       </body>
     </html>
   );

@@ -29,19 +29,48 @@ export interface PaginatedResponse<T> {
 }
 
 /**
- * User Type (example)
+ * User Type
+ * Matches server response from auth endpoints
  */
 export interface User {
   id: string;
   email: string;
   username: string;
   role: string;
-  createdAt: string;
-  updatedAt: string;
+  status: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 /**
- * Auth Response (example)
+ * Login Response
+ * Server returns: { success: true, status: 200, message: string, user: User, token: string }
+ */
+export interface LoginResponse {
+  success: boolean;
+  status: number;
+  message: string;
+  user: User;
+  token: string;
+}
+
+/**
+ * Register Response
+ * Server returns: { success: true, status: 200, message: string, data: { user: User, token: string, tokensGranted: number } }
+ */
+export interface RegisterResponse {
+  success: boolean;
+  status: number;
+  message: string;
+  data: {
+    user: User;
+    token: string;
+    tokensGranted: number;
+  };
+}
+
+/**
+ * Auth Response (generic)
  */
 export interface AuthResponse {
   token: string;

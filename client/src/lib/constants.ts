@@ -1,8 +1,11 @@
 /**
  * API Configuration Constants
+ * 
+ * Note: BASE_URL now points to Next.js API routes (same origin)
+ * This hides the actual backend URL from the browser
  */
 export const API_CONFIG = {
-  BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8090',
+  BASE_URL: '', // Empty string = same origin (Next.js API routes)
   TIMEOUT: parseInt(process.env.NEXT_PUBLIC_API_TIMEOUT || '30000'),
   RETRY_ATTEMPTS: 3,
   RETRY_DELAY: 1000,
@@ -10,16 +13,18 @@ export const API_CONFIG = {
 
 /**
  * API Endpoints
- * Add your backend endpoints here as you build features
+ * These are proxied through Next.js API routes to the backend
+ * 
+ * Client calls: /api/auth/login
+ * Next.js proxies to: http://localhost:8090/api/auth/login (hidden from browser)
  */
 export const API_ENDPOINTS = {
-  // Auth
+  // Auth endpoints (proxied through /api/auth/[...route])
   AUTH: {
     LOGIN: '/api/auth/login',
     REGISTER: '/api/auth/register',
-    LOGOUT: '/api/auth/logout',
-    REFRESH: '/api/auth/refresh',
-    ME: '/api/auth/me',
+    FORGOT_PASSWORD: '/api/auth/forgot',
+    CHANGE_PASSWORD: '/api/auth/password/change',
   },
   // Add more endpoints as needed
 } as const;

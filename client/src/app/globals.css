@@ -100,6 +100,30 @@
   padding: 1.5rem;
 }
 
+/* Glass Card - No Shine Variant (for forms) */
+.glass-card-no-shine {
+  position: relative;
+  backdrop-filter: blur(16px);
+  background-color: rgb(255 255 255 / 0.1);
+  border: 1px solid rgb(255 255 255 / 0.2);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
+  border-radius: 1rem;
+  color: white;
+  transition: all 500ms cubic-bezier(0.22, 1, 0.36, 1);
+  overflow: hidden;
+  padding: 1.5rem;
+}
+
+/* Remove shine effect on this variant */
+.glass-card-no-shine::after {
+  display: none;
+}
+
+.glass-card-no-shine:hover {
+  box-shadow: 0 6px 35px rgba(255, 255, 255, 0.1);
+  /* No scale transform on hover */
+}
+
 /* Glass Tag */
 .glass-tag {
   border-radius: 9999px;

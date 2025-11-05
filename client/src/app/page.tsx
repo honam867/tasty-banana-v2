@@ -1,29 +1,41 @@
-'use client';
+"use client";
 
-import { motion, useScroll, useTransform } from 'framer-motion';
-import { useRef } from 'react';
-import HeroSection from '@/components/HeroSection';
-import FilmstripScroll from '@/components/FilmstripScroll';
-import PromptResult from '@/components/PromptResult';
-import BananaIcon from '@/components/BananaIcon';
-import GlassButton from '@/components/GlassButton';
+import { motion, useScroll, useTransform } from "framer-motion";
+import { useRef } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
+import HeroSection from "@/components/HeroSection";
+import FilmstripScroll from "@/components/FilmstripScroll";
+import PromptResult from "@/components/PromptResult";
+import BananaIcon from "@/components/BananaIcon";
+import GlassButton from "@/components/GlassButton";
 
 export default function Home() {
+  const router = useRouter();
+  const { isAuthenticated } = useAuth();
   const containerRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({
     target: containerRef,
-    offset: ["start start", "end start"]
+    offset: ["start start", "end start"],
   });
 
   const heroY = useTransform(scrollYProgress, [0, 1], ["0%", "30%"]);
   const heroOpacity = useTransform(scrollYProgress, [0, 0.5], [1, 0]);
+
+  const handleEnterStudio = () => {
+    if (isAuthenticated) {
+      router.push("/studio");
+    } else {
+      router.push("/login");
+    }
+  };
 
   return (
     <div ref={containerRef} className="relative overflow-hidden bg-black">
       {/* Hero Section with Carousel */}
       <section className="relative h-screen">
         <HeroSection />
-        
+
         {/* Hero Content Overlay */}
         <motion.div
           style={{ y: heroY, opacity: heroOpacity }}
@@ -42,7 +54,7 @@ export default function Home() {
                 AI images
               </span>
             </h1>
-            
+
             {/* Subheadline */}
             <motion.p
               initial={{ opacity: 0, y: 20 }}
@@ -52,15 +64,16 @@ export default function Home() {
             >
               We enhance the prompt for you.
             </motion.p>
-            
+
             {/* CTA */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 1, delay: 1.1 }}
             >
-              <GlassButton 
+              <GlassButton
                 variant="primary"
+                onClick={handleEnterStudio}
                 className="border border-white/30 hover:bg-(--banana-gold)/20 text-(--banana-gold) text-lg px-12 py-4"
               >
                 Enter the Studio
@@ -68,7 +81,6 @@ export default function Home() {
             </motion.div>
           </motion.div>
         </motion.div>
-        
       </section>
 
       {/* Filmstrip Section */}
@@ -99,9 +111,9 @@ export default function Home() {
             <span className="text-[var(--banana-gold)]">per model.</span>
           </p>
           <p className="text-xl md:text-2xl text-white/50 leading-relaxed max-w-3xl mx-auto font-light">
-            Every AI model has its own language. Banana AI Studio automatically adapts 
-            and enhances your prompts to match each model's strengths—ensuring you get 
-            the best possible results, every time.
+            Every AI model has its own language. Banana AI Studio automatically
+            adapts and enhances your prompts to match each model's
+            strengths—ensuring you get the best possible results, every time.
           </p>
         </motion.div>
       </section>
@@ -119,30 +131,31 @@ export default function Home() {
           <div className="flex justify-center mb-8">
             <BananaIcon glowing />
           </div>
-          
+
           <h2 className="text-4xl md:text-6xl font-bold mb-6 text-white">
             Ready for your closeup?
           </h2>
-          
+
           <p className="text-xl md:text-2xl text-white/60 mb-12 font-light">
             Join creators who've elevated their AI art to cinematic heights.
           </p>
-          
+
           <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
-            <GlassButton 
+            <GlassButton
               variant="primary"
+              onClick={handleEnterStudio}
               className="bg-[var(--banana-gold)]/10 border-2 border-[var(--banana-gold)]/50 hover:bg-[var(--banana-gold)]/20 hover:border-[var(--banana-gold)]/80 text-[var(--banana-gold)] text-lg px-12 py-4 shadow-[0_0_20px_rgba(255,215,0,0.3)] hover:shadow-[0_0_30px_rgba(255,215,0,0.5)] transition-all duration-300"
             >
               Start Creating Free
             </GlassButton>
-            <GlassButton 
+            <GlassButton
               variant="secondary"
               className="border-2 border-white/30 hover:border-white/60 text-white/80 hover:text-white text-lg px-12 py-4 transition-all duration-300"
             >
               Watch the Reel
             </GlassButton>
           </div>
-          
+
           {/* Footer Links */}
           <motion.div
             initial={{ opacity: 0 }}
@@ -155,9 +168,24 @@ export default function Home() {
               <span className="text-white/60">© 2024 Banana AI Studio</span>
             </div>
             <div className="flex gap-8">
-              <a href="#" className="hover:text-[var(--banana-gold)] transition-colors">Privacy</a>
-              <a href="#" className="hover:text-[var(--banana-gold)] transition-colors">Terms</a>
-              <a href="#" className="hover:text-[var(--banana-gold)] transition-colors">Contact</a>
+              <a
+                href="#"
+                className="hover:text-[var(--banana-gold)] transition-colors"
+              >
+                Privacy
+              </a>
+              <a
+                href="#"
+                className="hover:text-[var(--banana-gold)] transition-colors"
+              >
+                Terms
+              </a>
+              <a
+                href="#"
+                className="hover:text-[var(--banana-gold)] transition-colors"
+              >
+                Contact
+              </a>
             </div>
           </motion.div>
         </motion.div>
