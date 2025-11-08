@@ -2,12 +2,12 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { useGenerationsContext } from '@/contexts/GenerationsContext';
 import GenerationsList from './GenerationsList';
 import GenerationThumbnailGallery from './GenerationThumbnailGallery';
-import type { GenerationItem } from '@/lib/api/generations';
 
 export default function RightPanel() {
-  const [generations, setGenerations] = useState<GenerationItem[]>([]);
+  const { generations } = useGenerationsContext();
   const [activeGenerationId, setActiveGenerationId] = useState<string | null>(null);
   const [scrollToGenerationId, setScrollToGenerationId] = useState<string | null>(null);
 
@@ -28,7 +28,6 @@ export default function RightPanel() {
         {/* Main Content Area - 85% */}
         <div className="flex-[85] overflow-hidden">
           <GenerationsList
-            onGenerationsChange={setGenerations}
             onActiveGenerationChange={setActiveGenerationId}
             scrollToGenerationId={scrollToGenerationId}
           />

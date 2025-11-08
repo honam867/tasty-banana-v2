@@ -6,78 +6,24 @@ import TabNavigation from '@/components/studio/TabNavigation';
 import PromptInput from '@/components/studio/PromptInput';
 import AspectRatioSelector from '@/components/studio/AspectRatioSelector';
 import NumberOfImagesSelector from '@/components/studio/NumberOfImagesSelector';
-import QualitySelector from '@/components/studio/QualitySelector';
 import { generateTextToImage } from '@/lib/api/textToImage';
-import { useWebSocketEvent } from '@/hooks/useWebSocket';
-import { useTokenBalance } from '@/lib/api/tokens';
+import { useGenerationsContext } from '@/contexts/GenerationsContext';
 import { GENERATION_LIMITS, HINT_TYPES } from '@/lib/constants';
 import type { AspectRatio } from '@/types/generation';
-import type {
-  GenerationProgressEvent,
-  GenerationCompletedEvent,
-  GenerationFailedEvent,
-} from '@/types/websocket';
+import type { GenerationItem } from '@/lib/api/generations';
 
 export default function TextToImagePage() {
   // Form state
   const [prompt, setPrompt] = useState('');
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('9:16');
   const [numberOfImages, setNumberOfImages] = useState(2);
-  const [quality, setQuality] = useState('standard');
 
   // Generation state
   const [isGenerating, setIsGenerating] = useState(false);
-  const [generationId, setGenerationId] = useState<string | null>(null);
-  const [progress, setProgress] = useState(0);
-  const [statusMessage, setStatusMessage] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  // Token balance
-  const { balance, refetch: refetchBalance } = useTokenBalance();
-
-  // WebSocket event handlers
-  useWebSocketEvent<GenerationProgressEvent>(
-    'generation_progress',
-    (data) => {
-      if (data.generationId === generationId) {
-        setProgress(data.progress);
-        setStatusMessage(data.message);
-      }
-    },
-    [generationId]
-  );
-
-  useWebSocketEvent<GenerationCompletedEvent>(
-    'generation_completed',
-    (data) => {
-      if (data.generationId === generationId) {
-        setIsGenerating(false);
-        setProgress(100);
-        setStatusMessage('Generation completed!');
-        setGenerationId(null);
-        
-        // Refresh token balance
-        refetchBalance();
-
-        // TODO: Display images in right panel
-        console.log('[Text-to-Image] Generation completed:', data.result);
-      }
-    },
-    [generationId]
-  );
-
-  useWebSocketEvent<GenerationFailedEvent>(
-    'generation_failed',
-    (data) => {
-      if (data.generationId === generationId) {
-        setIsGenerating(false);
-        setError(data.error);
-        setStatusMessage('Generation failed');
-        setGenerationId(null);
-      }
-    },
-    [generationId]
-  );
+  // Generations context for optimistic updates
+  const { addOptimisticGeneration } = useGenerationsContext();
 
   const handleGenerate = async () => {
     // Validation
@@ -94,8 +40,6 @@ export default function TextToImagePage() {
     try {
       setError(null);
       setIsGenerating(true);
-      setProgress(0);
-      setStatusMessage('Queueing generation...');
 
       // Cap numberOfImages at API limit
       const apiNumberOfImages = Math.min(
@@ -110,10 +54,28 @@ export default function TextToImagePage() {
       });
 
       if (response.success && response.data) {
-        setGenerationId(response.data.generationId);
-        setStatusMessage(response.data.message);
+        // Create optimistic generation item
+        const optimisticGeneration: GenerationItem = {
+          generationId: response.data.generationId,
+          status: 'pending',
+          progress: 0,
+          createdAt: new Date().toISOString(),
+          metadata: {
+            prompt,
+            numberOfImages: apiNumberOfImages,
+            aspectRatio,
+          },
+          images: [],
+        };
+
+        // Add to generations list immediately
+        addOptimisticGeneration(optimisticGeneration);
+
         console.log('[Text-to-Image] Job queued:', response.data);
       }
+
+      // Reset form state after successful submission
+      setIsGenerating(false);
     } catch (err: any) {
       console.error('[Text-to-Image] Generation error:', err);
       setIsGenerating(false);
@@ -159,22 +121,6 @@ export default function TextToImagePage() {
                 <p className="text-sm text-red-400">{error}</p>
               </div>
             )}
-
-            {/* Progress */}
-            {isGenerating && (
-              <div className="mt-4 space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-400">{statusMessage}</span>
-                  <span className="text-white font-medium">{progress}%</span>
-                </div>
-                <div className="w-full h-2 bg-gray-800 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-green-500 transition-all duration-300"
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
-              </div>
-            )}
           </div>
         </div>
 
@@ -182,7 +128,7 @@ export default function TextToImagePage() {
         <div className="border-t border-gray-800 bg-gray-900/95 backdrop-blur-sm">
           <div className="p-6 max-w-4xl">
             <div className="flex items-center gap-3 flex-wrap">
-              {/* Left Side - 3 Controls */}
+              {/* Left Side - 2 Controls */}
               <AspectRatioSelector
                 value={aspectRatio}
                 onChange={setAspectRatio}
@@ -195,22 +141,17 @@ export default function TextToImagePage() {
                 max={GENERATION_LIMITS.MAX_OUTPUTS_UI}
                 disabled={isGenerating}
               />
-              <QualitySelector
-                value={quality}
-                onChange={setQuality}
-                disabled={isGenerating}
-              />
 
               {/* Right Side - Generate Button */}
               <button
                 onClick={handleGenerate}
                 disabled={!isValid || isGenerating}
                 className={`
-                  flex-1 px-8 py-3 rounded-lg font-semibold text-white transition-all duration-200 min-w-[160px]
+                  glass-button flex-1 px-8 py-3 font-semibold text-white min-w-[160px] border-2
                   ${
                     !isValid || isGenerating
-                      ? 'bg-gray-700 cursor-not-allowed'
-                      : 'bg-green-500 hover:bg-green-600 active:scale-[0.98]'
+                      ? 'opacity-50 cursor-not-allowed border-white/10 bg-white/5'
+                      : 'border-[var(--banana-gold)]/50 bg-[var(--banana-gold)]/10 hover:bg-[var(--banana-gold)]/20 hover:border-[var(--banana-gold)]/80 text-[var(--banana-gold)] shadow-[0_0_20px_rgba(255,215,0,0.3)] hover:shadow-[0_0_30px_rgba(255,215,0,0.5)]'
                   }
                 `}
               >

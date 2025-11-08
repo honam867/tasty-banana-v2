@@ -11,7 +11,6 @@ interface QualitySelectorProps {
 }
 
 const QUALITY_OPTIONS = [
-  { value: 'standard', label: 'Standard', badge: undefined },
   { value: 'high-res', label: 'High-Res', badge: 'NEW' },
 ] as const;
 
@@ -59,11 +58,11 @@ export default function QualitySelector({
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
         className={`
-          flex items-center justify-between gap-3 px-4 py-3 rounded-lg border-2 transition-all duration-200 min-w-[130px]
+          glass-button flex items-center justify-between gap-3 px-4 py-3 border-2 min-w-[130px]
           ${
             isOpen
-              ? 'border-green-500 bg-green-500/10'
-              : 'border-gray-700 bg-gray-800/50 hover:border-gray-600'
+              ? 'border-[var(--banana-gold)]/80 bg-[var(--banana-gold)]/20'
+              : 'border-white/20 bg-white/5 hover:bg-white/10 hover:border-white/30'
           }
           ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
         `}
@@ -71,13 +70,13 @@ export default function QualitySelector({
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-white">{selectedOption.label}</span>
           {selectedOption.badge && (
-            <span className="px-1.5 py-0.5 text-[10px] font-bold bg-green-500 text-black rounded">
+            <span className="px-1.5 py-0.5 text-[10px] font-bold bg-[var(--banana-gold)] text-black rounded">
               {selectedOption.badge}
             </span>
           )}
         </div>
         <ChevronDown
-          className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${
+          className={`w-4 h-4 text-white/60 transition-transform duration-200 ${
             isOpen ? 'rotate-180' : ''
           }`}
         />
@@ -87,7 +86,7 @@ export default function QualitySelector({
       {isOpen && (
         <div
           className={`
-            absolute z-10 w-full bg-gray-800 border border-gray-700 rounded-lg shadow-lg overflow-auto
+            absolute z-10 w-full bg-black/80 backdrop-blur-xl border border-white/20 rounded-lg shadow-lg overflow-auto
             ${position === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'}
           `}
           style={{ maxHeight }}
@@ -101,14 +100,14 @@ export default function QualitySelector({
                 w-full px-4 py-2.5 text-left text-sm transition-colors duration-150 flex items-center justify-between
                 ${
                   option.value === value
-                    ? 'bg-green-500/20 text-green-400'
-                    : 'text-gray-300 hover:bg-gray-700'
+                    ? 'bg-[var(--banana-gold)]/20 text-[var(--banana-gold)]'
+                    : 'text-white/70 hover:bg-white/10'
                 }
               `}
             >
               <span>{option.label}</span>
               {option.badge && (
-                <span className="px-1.5 py-0.5 text-[10px] font-bold bg-green-500 text-black rounded">
+                <span className="px-1.5 py-0.5 text-[10px] font-bold bg-[var(--banana-gold)] text-black rounded">
                   {option.badge}
                 </span>
               )}

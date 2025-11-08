@@ -3,14 +3,11 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Loader2, RefreshCw, Inbox } from 'lucide-react';
-import { useGenerations } from '@/hooks/useGenerations';
+import { useGenerationsContext } from '@/contexts/GenerationsContext';
 import GenerationItem from './GenerationItem';
 import type { GenerationItem as GenerationItemType } from '@/lib/api/generations';
 
-
-
 interface GenerationsListProps {
-  onGenerationsChange?: (generations: GenerationItemType[]) => void;
   onActiveGenerationChange?: (generationId: string | null) => void;
   scrollToGenerationId?: string | null;
 }
@@ -20,7 +17,6 @@ interface GenerationsListProps {
  * Displays user's generation history with realtime updates and infinite scroll
  */
 export default function GenerationsList({
-  onGenerationsChange,
   onActiveGenerationChange,
   scrollToGenerationId,
 }: GenerationsListProps = {}) {
@@ -31,18 +27,11 @@ export default function GenerationsList({
     hasMore,
     loadMore,
     refresh,
-  } = useGenerations({ limit: 20, includeFailed: true });
+  } = useGenerationsContext();
 
   const [activeGenerationId, setActiveGenerationId] = useState<string | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const generationRefs = useRef<Map<string, HTMLDivElement>>(new Map());
-
-  // Notify parent of generations changes
-  useEffect(() => {
-    if (onGenerationsChange) {
-      onGenerationsChange(generations);
-    }
-  }, [generations, onGenerationsChange]);
 
   // Set up intersection observer for infinite scroll
   useEffect(() => {
@@ -74,39 +63,23 @@ export default function GenerationsList({
     };
   }, [hasMore, loading, loadMore]);
 
-  // Set up intersection observer for viewport tracking (active generation)
-  // Activates the generation item closest to viewport center
+  // Set up intersection observer for scroll-based active state
+  // Activates the generation that crosses the top detection line (20% from viewport top)
   useEffect(() => {
     const container = scrollContainerRef.current;
     if (!container || generations.length === 0) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
-        // Find the entry closest to viewport center
-        let closestEntry: IntersectionObserverEntry | undefined;
-        let minDistance = Infinity;
+        // Find which items are currently intersecting with our detection line
+        // The LAST one in the list is the one that most recently crossed the line
+        const intersectingEntries = entries.filter(entry => entry.isIntersecting);
         
-        entries.forEach((entry) => {
-          if (!entry.isIntersecting) return;
+        if (intersectingEntries.length > 0) {
+          // Get the last intersecting entry (the one at the top)
+          const topEntry = intersectingEntries[intersectingEntries.length - 1];
+          const generationId = topEntry.target.getAttribute('data-generation-id');
           
-          const rect = entry.boundingClientRect;
-          const containerRect = entry.rootBounds;
-          if (!containerRect) return;
-          
-          // Calculate distance from viewport center
-          const viewportCenter = containerRect.height / 2;
-          const elementCenter = rect.top + rect.height / 2;
-          const distance = Math.abs(elementCenter - viewportCenter);
-          
-          if (distance < minDistance) {
-            minDistance = distance;
-            closestEntry = entry;
-          }
-        });
-        
-        // Activate the closest item to center
-        if (closestEntry) {
-          const generationId = closestEntry.target.getAttribute('data-generation-id');
           if (generationId && generationId !== activeGenerationId) {
             setActiveGenerationId(generationId);
             if (onActiveGenerationChange) {
@@ -117,7 +90,13 @@ export default function GenerationsList({
       },
       {
         root: container,
-        threshold: 0.5,  // Trigger when item is 50% visible
+        // rootMargin creates the detection line
+        // "-20% 0px -80% 0px" means:
+        // - Top: move 20% down from top edge (detection line at 20%)
+        // - Bottom: move 80% up from bottom edge
+        // This creates a thin horizontal band at 20% from top
+        rootMargin: '-20% 0px -80% 0px',
+        threshold: 0,
       }
     );
 
@@ -131,15 +110,22 @@ export default function GenerationsList({
     };
   }, [generations.length, activeGenerationId, onActiveGenerationChange]);
 
-  // Scroll to generation (from external trigger or internal click)
+  // Scroll to generation (from thumbnail click)
   const scrollToGeneration = (generationId: string) => {
     const element = generationRefs.current.get(generationId);
     if (element) {
+      // Set active state
+      setActiveGenerationId(generationId);
+      if (onActiveGenerationChange) {
+        onActiveGenerationChange(generationId);
+      }
+      
+      // Scroll to align with detection line (20% from top)
+      // Using 'start' brings it to the top, which crosses our 20% detection line
       element.scrollIntoView({
         behavior: 'smooth',
-        block: 'center',
+        block: 'start',
       });
-      setActiveGenerationId(generationId);
     }
   };
 

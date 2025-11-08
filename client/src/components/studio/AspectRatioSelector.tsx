@@ -54,18 +54,18 @@ export default function AspectRatioSelector({
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
         className={`
-          flex items-center justify-between gap-3 px-4 py-3 rounded-lg border-2 transition-all duration-200 min-w-[100px]
+          glass-button flex items-center justify-between gap-3 px-4 py-3 border-2 min-w-[100px]
           ${
             isOpen
-              ? 'border-green-500 bg-green-500/10'
-              : 'border-gray-700 bg-gray-800/50 hover:border-gray-600'
+              ? 'border-[var(--banana-gold)]/80 bg-[var(--banana-gold)]/20'
+              : 'border-white/20 bg-white/5 hover:bg-white/10 hover:border-white/30'
           }
           ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
         `}
       >
         <span className="text-sm font-medium text-white">{value}</span>
         <ChevronDown
-          className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${
+          className={`w-4 h-4 text-white/60 transition-transform duration-200 ${
             isOpen ? 'rotate-180' : ''
           }`}
         />
@@ -75,7 +75,7 @@ export default function AspectRatioSelector({
       {isOpen && (
         <div
           className={`
-            absolute z-10 w-full bg-gray-800 border border-gray-700 rounded-lg shadow-lg overflow-auto
+            absolute z-10 w-full bg-black/80 backdrop-blur-xl border border-white/20 rounded-lg shadow-lg overflow-auto
             ${position === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'}
           `}
           style={{ maxHeight }}
@@ -89,8 +89,8 @@ export default function AspectRatioSelector({
                 w-full px-4 py-2.5 text-left text-sm transition-colors duration-150
                 ${
                   ratio === value
-                    ? 'bg-green-500/20 text-green-400'
-                    : 'text-gray-300 hover:bg-gray-700'
+                    ? 'bg-[var(--banana-gold)]/20 text-[var(--banana-gold)]'
+                    : 'text-white/70 hover:bg-white/10'
                 }
               `}
             >
