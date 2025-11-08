@@ -44,9 +44,29 @@ export const STORAGE_KEYS = {
 export const HTTP_STATUS = {
   OK: 200,
   CREATED: 201,
+  ACCEPTED: 202,
   BAD_REQUEST: 400,
   UNAUTHORIZED: 401,
   FORBIDDEN: 403,
   NOT_FOUND: 404,
   INTERNAL_SERVER_ERROR: 500,
+} as const;
+
+/**
+ * Image Generation Constants
+ */
+export const ASPECT_RATIOS = ['1:1', '16:9', '9:16', '4:3', '3:4'] as const;
+
+export const GENERATION_LIMITS = {
+  PROMPT_MIN_LENGTH: 5,
+  PROMPT_MAX_LENGTH: 2000,
+  MAX_OUTPUTS_UI: 6,  // UI allows up to 6
+  MAX_OUTPUTS_API: 4, // But API caps at 4
+  MIN_OUTPUTS: 1,
+} as const;
+
+export const HINT_TYPES = {
+  TEXT_TO_IMAGE: 'text_to_image',
+  IMAGE_REFERENCE: 'image_reference',
+  STYLE_TRANSFER: 'style_transfer',
 } as const;
