@@ -1,6 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useState, type ChangeEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useState,
+  type ChangeEvent,
+  type ClipboardEvent,
+} from 'react';
 import { motion } from 'framer-motion';
 import { UploadCloud, XCircle, Loader2 } from 'lucide-react';
 
@@ -156,6 +162,17 @@ export default function UploadDropzone({
     [handleFiles]
   );
 
+  const handlePaste = useCallback(
+    (event: ClipboardEvent<HTMLLabelElement>) => {
+      if (disabled) return;
+      const files = event.clipboardData?.files;
+      if (!files || !files.length) return;
+      event.preventDefault();
+      handleFiles(files);
+    },
+    [disabled, handleFiles]
+  );
+
   const handleDrop = useCallback(
     (event: React.DragEvent<HTMLLabelElement>) => {
       event.preventDefault();
@@ -165,6 +182,31 @@ export default function UploadDropzone({
     },
     [disabled, handleFiles]
   );
+
+  useEffect(() => {
+    if (disabled) return undefined;
+
+    const handleWindowPaste = (event: WindowEventMap['paste']) => {
+      const target = event.target as HTMLElement | null;
+      if (target) {
+        const isEditable =
+          target.closest('input, textarea, [contenteditable="true"]') !== null ||
+          target.getAttribute('contenteditable') === 'true';
+        if (isEditable) {
+          return;
+        }
+      }
+
+      const files = event.clipboardData?.files;
+      if (!files || !files.length) return;
+
+      event.preventDefault();
+      handleFiles(files);
+    };
+
+    window.addEventListener('paste', handleWindowPaste);
+    return () => window.removeEventListener('paste', handleWindowPaste);
+  }, [disabled, handleFiles]);
 
   return (
     <div className="space-y-2">
@@ -211,7 +253,9 @@ export default function UploadDropzone({
           setIsDragging(false);
         }}
         onDrop={handleDrop}
-        className={`relative block border-2 border-dashed rounded-2xl p-4 md:p-6 transition-all cursor-pointer ${
+        onPaste={handlePaste}
+        tabIndex={disabled ? -1 : 0}
+        className={`relative block border-2 border-dashed rounded-2xl p-4 md:p-6 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--banana-gold)]/60 ${
           disabled
             ? 'opacity-60 cursor-not-allowed'
             : isDragging
@@ -250,6 +294,9 @@ export default function UploadDropzone({
             </p>
             <p className="text-xs text-white/50 mt-1">
               Supported: JPG, PNG, WebP, GIF, BMP - max {formatBytes(maxSizeBytes)}
+            </p>
+            <p className="text-[11px] text-white/40 mt-1">
+              Tip: Press <span className="font-semibold">Ctrl/⌘ + V</span> anywhere on this page to paste a screenshot instantly.
             </p>
             {valueLabel && (
               <p className="text-[11px] text-white/40 mt-1 truncate">{valueLabel}</p>
