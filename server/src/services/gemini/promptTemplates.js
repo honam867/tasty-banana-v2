@@ -12,13 +12,7 @@ class PromptTemplates {
     return `
       ${basePrompt}
       
-      Professional product photography specifications:
-      - High resolution, sharp focus
-      - Clean, minimalist composition
-      - Studio lighting with soft shadows
-      - Clean background
-      - Commercial-grade quality
-      - Perfect for e-commerce and marketing
+  
     `.trim();
   }
 

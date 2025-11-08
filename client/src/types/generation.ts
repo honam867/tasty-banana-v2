@@ -3,6 +3,7 @@
  */
 
 export type AspectRatio = '1:1' | '16:9' | '9:16' | '4:3' | '3:4';
+export type ReferenceType = 'subject' | 'face' | 'full_image';
 
 export interface GenerationParams {
   prompt: string;
@@ -10,6 +11,15 @@ export interface GenerationParams {
   numberOfImages?: number;
   projectId?: string;
   promptTemplateId?: string;
+}
+
+export interface ImageReferenceParams {
+  prompt: string;
+  referenceImageId?: string;
+  referenceType: ReferenceType;
+  aspectRatio?: AspectRatio;
+  numberOfImages?: number;
+  projectId?: string;
 }
 
 export interface GenerationResponse {
@@ -24,6 +34,8 @@ export interface GenerationResponse {
       prompt: string;
       aspectRatio: string;
       projectId?: string;
+      referenceType?: ReferenceType;
+      referenceImageId?: string;
     };
     websocketEvents: {
       progress: string;
@@ -48,6 +60,8 @@ export interface GenerationResult {
   metadata: {
     prompt: string;
     aspectRatio: string;
+    referenceType?: ReferenceType;
+    referenceImageId?: string;
   };
   tokens: {
     used: number;

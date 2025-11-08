@@ -1,4 +1,5 @@
 import apiClient from '../api';
+import type { ReferenceType } from '@/types/generation';
 
 /**
  * Generation Image Interface
@@ -24,6 +25,10 @@ export interface GenerationItem {
     numberOfImages: number;
     aspectRatio: string;
     projectId?: string;
+    referenceType?: ReferenceType;
+    referenceImageId?: string;
+    referenceImageUrl?: string;
+    operationType?: string;
   };
   tokensUsed?: number;
   processingTimeMs?: number;

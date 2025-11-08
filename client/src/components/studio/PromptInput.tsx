@@ -14,7 +14,9 @@ interface PromptInputProps {
   onClear?: () => void;
   maxLength?: number;
   minHeight?: string;
+  maxHeight?: string;
   disabled?: boolean;
+  autoResize?: boolean;
 }
 
 export default function PromptInput({
@@ -27,17 +29,20 @@ export default function PromptInput({
   onClear,
   maxLength = 2000,
   minHeight = '150px',
+  maxHeight,
   disabled = false,
+  autoResize = true,
 }: PromptInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Auto-resize textarea height
   useEffect(() => {
+    if (!autoResize) return;
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
       textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
     }
-  }, [value]);
+  }, [autoResize, value]);
 
   const handleHintClick = (hintText: string) => {
     // Append hint to existing prompt with space
@@ -68,27 +73,39 @@ export default function PromptInput({
       )}
 
       {/* Input Container */}
-      <div className="border border-gray-700 rounded-lg bg-gray-900/50 focus-within:border-gray-600 transition-colors">
+      <div
+        className={`
+          rounded-2xl border border-white/10 bg-gradient-to-b from-white/5 to-white/0
+          focus-within:border-[var(--banana-gold)]/60 focus-within:shadow-[0_0_35px_rgba(255,215,0,0.12)]
+          transition-all duration-300 backdrop-blur-md
+        `}
+      >
         <textarea
           ref={textareaRef}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
           disabled={disabled}
-          className="w-full px-4 py-3 bg-transparent text-white placeholder-gray-500 outline-none resize-none overflow-y-auto"
-          style={{ minHeight }}
+          className={`w-full px-5 py-4 bg-transparent text-white text-base placeholder-white/40 outline-none ${
+            autoResize ? 'resize-none' : 'resize-none overflow-y-auto'
+          }`}
+          style={{
+            minHeight,
+            ...(maxHeight ? { maxHeight } : {}),
+            ...(autoResize ? {} : { overflowY: 'auto' }),
+          }}
           maxLength={maxLength}
         />
 
         {/* Toolbar */}
         {showToolbar && (
-          <div className="flex items-center justify-between px-4 py-2 border-t border-gray-800 bg-gray-900/80">
+          <div className="flex items-center justify-between px-4 py-3 border-t border-white/5 bg-white/5 rounded-b-2xl">
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={handleClear}
                 disabled={!value || disabled}
-                className="p-2 text-gray-400 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors duration-200"
+                className="p-2 rounded-full text-white/50 hover:text-white hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                 title="Clear prompt"
               >
                 <Trash2 className="w-4 h-4" />
@@ -96,17 +113,17 @@ export default function PromptInput({
             </div>
 
             {/* Character Count */}
-            <div
-              className={`text-xs ${
+            <span
+              className={`text-xs font-medium tracking-wide ${
                 isOverLimit
                   ? 'text-red-400'
                   : characterCount > maxLength * 0.9
-                  ? 'text-yellow-400'
-                  : 'text-gray-500'
+                  ? 'text-yellow-300'
+                  : 'text-white/60'
               }`}
             >
               {characterCount} / {maxLength}
-            </div>
+            </span>
           </div>
         )}
       </div>

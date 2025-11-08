@@ -70,3 +70,7 @@ export const HINT_TYPES = {
   IMAGE_REFERENCE: 'image_reference',
   STYLE_TRANSFER: 'style_transfer',
 } as const;
+
+export const IMAGE_REFERENCE_TYPES = ['subject', 'face', 'full_image'] as const;
+
+export const IMAGE_REFERENCE_TOKEN_COST = 150;

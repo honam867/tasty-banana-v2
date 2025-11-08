@@ -6,6 +6,36 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { proxyToBackend } from '@/lib/serverApi';
 
+const BACKEND_API_URL = process.env.BACKEND_API_URL || 'http://localhost:8090';
+
+async function forwardMultipart(
+  request: NextRequest,
+  path: string,
+  token?: string
+): Promise<Response> {
+  const formData = await request.formData();
+
+  const response = await fetch(`${BACKEND_API_URL}${path}`, {
+    method: 'POST',
+    headers: token
+      ? {
+          Authorization: token,
+        }
+      : undefined,
+    body: formData,
+  });
+
+  const arrayBuffer = await response.arrayBuffer();
+  const contentType = response.headers.get('content-type') || 'application/json';
+
+  return new Response(arrayBuffer, {
+    status: response.status,
+    headers: {
+      'Content-Type': contentType,
+    },
+  });
+}
+
 export async function POST(
   request: NextRequest,
   context: { params: Promise<{ route: string[] }> }
@@ -18,15 +48,7 @@ export async function POST(
   const contentType = request.headers.get('content-type') || '';
   
   if (contentType.includes('multipart/form-data')) {
-    // For multipart, we need to forward the FormData
-    // This is more complex - for now, return an error
-    return NextResponse.json(
-      { 
-        success: false, 
-        message: 'Multipart uploads should use direct backend connection' 
-      },
-      { status: 501 }
-    );
+    return forwardMultipart(request, path, token);
   }
 
   const body = await request.json();

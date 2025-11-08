@@ -1,11 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { Loader2 } from 'lucide-react';
 import TabNavigation from '@/components/studio/TabNavigation';
 import PromptInput from '@/components/studio/PromptInput';
-import AspectRatioSelector from '@/components/studio/AspectRatioSelector';
-import NumberOfImagesSelector from '@/components/studio/NumberOfImagesSelector';
+import BottomControls from '@/components/studio/BottomControls';
 import { generateTextToImage } from '@/lib/api/textToImage';
 import { useGenerationsContext } from '@/contexts/GenerationsContext';
 import { GENERATION_LIMITS, HINT_TYPES } from '@/lib/constants';
@@ -124,49 +122,16 @@ export default function TextToImagePage() {
           </div>
         </div>
 
-        {/* Bottom Section - Fixed Controls */}
-        <div className="border-t border-gray-800 bg-gray-900/95 backdrop-blur-sm">
-          <div className="p-6 max-w-4xl">
-            <div className="flex items-center gap-3 flex-wrap">
-              {/* Left Side - 2 Controls */}
-              <AspectRatioSelector
-                value={aspectRatio}
-                onChange={setAspectRatio}
-                disabled={isGenerating}
-              />
-              <NumberOfImagesSelector
-                value={numberOfImages}
-                onChange={setNumberOfImages}
-                min={GENERATION_LIMITS.MIN_OUTPUTS}
-                max={GENERATION_LIMITS.MAX_OUTPUTS_UI}
-                disabled={isGenerating}
-              />
-
-              {/* Right Side - Generate Button */}
-              <button
-                onClick={handleGenerate}
-                disabled={!isValid || isGenerating}
-                className={`
-                  glass-button flex-1 px-8 py-3 font-semibold text-white min-w-[160px] border-2
-                  ${
-                    !isValid || isGenerating
-                      ? 'opacity-50 cursor-not-allowed border-white/10 bg-white/5'
-                      : 'border-[var(--banana-gold)]/50 bg-[var(--banana-gold)]/10 hover:bg-[var(--banana-gold)]/20 hover:border-[var(--banana-gold)]/80 text-[var(--banana-gold)] shadow-[0_0_20px_rgba(255,215,0,0.3)] hover:shadow-[0_0_30px_rgba(255,215,0,0.5)]'
-                  }
-                `}
-              >
-                {isGenerating ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    Generating...
-                  </span>
-                ) : (
-                  'Generate'
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
+        <BottomControls
+          aspectRatio={aspectRatio}
+          onAspectRatioChange={setAspectRatio}
+          numberOfImages={numberOfImages}
+          onNumberOfImagesChange={setNumberOfImages}
+          selectorsDisabled={isGenerating}
+          generateDisabled={!isValid || isGenerating}
+          onGenerate={handleGenerate}
+          isGenerating={isGenerating}
+        />
       </div>
     </>
   );
