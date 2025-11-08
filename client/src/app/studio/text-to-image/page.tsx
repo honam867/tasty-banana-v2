@@ -95,7 +95,7 @@ export default function TextToImagePage() {
       {/* Content Area - Flex Column */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top Section - Scrollable Prompt Area */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-2 md:p-6">
           <div className="max-w-4xl">
             {/* Prompt Input */}
             <div>
@@ -131,6 +131,7 @@ export default function TextToImagePage() {
           generateDisabled={!isValid || isGenerating}
           onGenerate={handleGenerate}
           isGenerating={isGenerating}
+          highlightOnReady={isValid && !isGenerating}
         />
       </div>
     </>

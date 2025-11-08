@@ -8,9 +8,13 @@ import {
   Clock,
   Coins,
   Image as ImageIcon,
+  Download,
+  Copy,
+  Check,
 } from "lucide-react";
 import ImageGallery from "./ImageGallery";
 import type { GenerationItem as GenerationItemType } from "@/lib/api/generations";
+import { triggerImageDownload } from "@/lib/download";
 
 interface GenerationItemProps {
   generation: GenerationItemType;
@@ -24,6 +28,7 @@ interface GenerationItemProps {
 function GenerationItem({ generation, isActive = false }: GenerationItemProps) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [copied, setCopied] = useState(false);
 
   const {
     status,
@@ -48,6 +53,18 @@ function GenerationItem({ generation, isActive = false }: GenerationItemProps) {
     failed: "bg-red-500/10 text-red-400 border-red-500/30",
   };
 
+  const handleDownloadImage = (
+    imageUrl: string,
+    mimeType?: string,
+    imageId?: string
+  ) => {
+    const extension = mimeType?.split("/")[1] || "png";
+    const filename = imageId
+      ? `banana-ai-studio-${imageId}.${extension}`
+      : `banana-ai-studio.${extension}`;
+    triggerImageDownload(imageUrl, filename);
+  };
+
   const handleImageClick = (index: number) => {
     setLightboxIndex(index);
     setLightboxOpen(true);
@@ -69,7 +86,7 @@ function GenerationItem({ generation, isActive = false }: GenerationItemProps) {
           ${
             isActive
               ? "bg-[var(--banana-gold)]/5 border-l-4 border-l-[var(--banana-gold)]"
-              : ""
+              : "border-l-4 border-transparent"
           }
           ${isActive_status ? "bg-white/[0.02]" : ""}
         `}
@@ -104,10 +121,33 @@ function GenerationItem({ generation, isActive = false }: GenerationItemProps) {
             )}
           </div>
 
-          {/* Prompt */}
-          <p className="text-sm text-white/90 line-clamp-2 mb-1">
+        {/* Prompt */}
+        <div className="flex items-center gap-2 mb-1 ">
+          <p className="text-sm text-white/90 line-clamp-2">
             {metadata.prompt}
           </p>
+          <button
+            type="button"
+            onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(metadata.prompt || "");
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 1500);
+                } catch (error) {
+                  console.error("Copy failed", error);
+                }
+              }}
+            className="p-1.5 rounded-full  bg-white/5 text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+              aria-label="Copy prompt"
+              title="Copy prompt"
+            >
+              {copied ? (
+                <Check className="w-4 h-4 text-[var(--banana-gold)]" />
+              ) : (
+                <Copy className="w-4 h-4" />
+              )}
+            </button>
+          </div>
 
           {/* Metadata */}
           <div className="flex items-center gap-2 text-xs text-white/40">
@@ -154,22 +194,37 @@ function GenerationItem({ generation, isActive = false }: GenerationItemProps) {
           <div className="mt-3 scrollbar-hide">
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
               {images.map((img, index) => (
-                <button
+                <div
                   key={img.imageId}
-                  onClick={() => handleImageClick(index)}
-                  className="relative rounded-lg max-h-[380px] overflow-hidden border border-white/10 hover:border-(--banana-gold)/50 transition-colors group"
+                  className="relative rounded-lg max-h-[380px] overflow-hidden border border-white/10 hover:border-[var(--banana-gold)]/50 transition-colors group"
                 >
-                  <img
-                    src={img.imageUrl}
-                    alt={`Generated image ${index + 1}`}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform will-change-transform"
-                    loading="lazy"
-                    decoding="async"
-                  />
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                    <ImageIcon className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </div>
-                </button>
+                  <button
+                    onClick={() => handleImageClick(index)}
+                    className="w-full h-full"
+                  >
+                    <img
+                      src={img.imageUrl}
+                      alt={`Generated image ${index + 1}`}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform will-change-transform"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center pointer-events-none">
+                      <ImageIcon className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleDownloadImage(img.imageUrl, img.mimeType, img.imageId);
+                    }}
+                    className="absolute top-2 right-2 p-2 rounded-full bg-black/60 border border-white/10 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/80"
+                    aria-label="Download image"
+                  >
+                    <Download className="w-4 h-4" />
+                  </button>
+                </div>
               ))}
             </div>
           </div>
@@ -197,6 +252,7 @@ function GenerationItem({ generation, isActive = false }: GenerationItemProps) {
       {/* Lightbox */}
       {images && images.length > 0 && (
         <ImageGallery
+          key={`${generation.generationId}-${lightboxOpen ? lightboxIndex : 'closed'}`}
           images={images}
           prompt={metadata.prompt}
           isOpen={lightboxOpen}

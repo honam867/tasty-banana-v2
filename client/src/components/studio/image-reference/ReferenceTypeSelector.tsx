@@ -96,7 +96,7 @@ export default function ReferenceTypeSelector({
                 </span>
                 <span className="text-sm font-semibold text-white">{option.label}</span>
               </div>
-              <p className="text-xs text-white/60">{option.description}</p>
+              <p className="text-xs text-white/60 line-clamp-2 md:line-clamp-3" title={option.description}>{option.description}</p>
             </button>
           );
         })}

@@ -1,7 +1,7 @@
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
-import { Sparkles, Clock, User, LogOut } from 'lucide-react';
+import { Sparkles, Clock, User, LogOut, Menu, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useState } from 'react';
 import TokenBalance from './TokenBalance';
@@ -19,7 +19,7 @@ interface NavItem {
   label: string;
   icon: typeof Sparkles;
   path: string;
-  matchPaths?: string[]; // Additional paths that should mark this item as active
+  matchPaths?: string[];
   disabled?: boolean;
 }
 
@@ -29,7 +29,6 @@ const NAV_ITEMS: NavItem[] = [
     label: 'Image',
     icon: Sparkles,
     path: '/studio/text-to-image',
-    // This item includes these child routes
     matchPaths: ['/studio/text-to-image', '/studio/image-reference', '/studio/style-transfer'],
   },
   {
@@ -37,7 +36,7 @@ const NAV_ITEMS: NavItem[] = [
     label: 'History',
     icon: Clock,
     path: '/studio/history',
-    disabled: true, // Building
+    disabled: true,
   },
 ];
 
@@ -47,29 +46,22 @@ export default function Sidebar() {
   const { user, logout } = useAuth();
   const [showDesktopDropdown, setShowDesktopDropdown] = useState(false);
   const [showMobileDropdown, setShowMobileDropdown] = useState(false);
+  const [showMobilePanel, setShowMobilePanel] = useState(false);
 
   const handleLogout = () => {
     setShowDesktopDropdown(false);
     setShowMobileDropdown(false);
+    setShowMobilePanel(false);
     logout();
     router.push('/login');
   };
 
   const isActive = (item: NavItem) => {
     if (!pathname) return false;
-    
-    // Check if current path matches the main path
-    if (pathname === item.path || pathname.startsWith(item.path)) {
-      return true;
-    }
-    
-    // Check if current path matches any of the child paths (for items with multiple tabs)
+    if (pathname === item.path || pathname.startsWith(item.path)) return true;
     if (item.matchPaths) {
-      return item.matchPaths.some(matchPath => 
-        pathname === matchPath || pathname.startsWith(matchPath)
-      );
+      return item.matchPaths.some((match) => pathname === match || pathname.startsWith(match));
     }
-    
     return false;
   };
 
@@ -80,9 +72,8 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* Desktop Sidebar - Fixed Left */}
+      {/* Desktop sidebar */}
       <aside className="hidden md:flex flex-col w-20 border-r border-white/10 bg-black/40 backdrop-blur-xl">
-        {/* Navigation Items - Centered Vertically */}
         <nav className="flex-1 flex flex-col items-center justify-center space-y-4 py-8">
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
@@ -95,11 +86,12 @@ export default function Sidebar() {
                 disabled={item.disabled}
                 className={`
                   relative group flex flex-col items-center justify-center
-                  w-12 h-12 lg:w-14 lg:h-14 rounded-xl
+                  w-12 h-12 lg:w-14 lg:h-14 rounded-xl border
                   transition-all duration-300
-                  ${active 
-                    ? 'bg-[var(--banana-gold)]/10 border-2 border-[var(--banana-gold)]' 
-                    : 'bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20'
+                  ${
+                    active
+                      ? 'bg-[var(--banana-gold)]/10 border-[var(--banana-gold)]'
+                      : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20'
                   }
                   ${item.disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
                 `}
@@ -107,14 +99,14 @@ export default function Sidebar() {
                 whileTap={!item.disabled ? { scale: 0.95 } : {}}
                 title={item.label}
               >
-                <Icon 
+                <Icon
                   className={`w-5 h-5 lg:w-6 lg:h-6 transition-colors ${
-                    active ? 'text-[var(--banana-gold)]' : 'text-white/60 group-hover:text-white'
+                    active ? 'text-[var(--banana-gold)]' : 'text-white/70 group-hover:text-white'
                   }`}
                 />
                 {active && (
                   <motion.div
-                    layoutId="activeIndicator"
+                    layoutId="desktopNavIndicator"
                     className="absolute -left-1 top-1/2 -translate-y-1/2 w-1 h-8 bg-[var(--banana-gold)] rounded-r-full"
                     transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                   />
@@ -124,11 +116,8 @@ export default function Sidebar() {
           })}
         </nav>
 
-        {/* Bottom Section - Avatar + Token Balance */}
         <div className="flex flex-col items-center space-y-3 p-4 border-t border-white/10">
           <TokenBalance />
-          
-          {/* User Avatar with Dropdown - Desktop */}
           <Dropdown
             isOpen={showDesktopDropdown}
             onClose={() => setShowDesktopDropdown(false)}
@@ -151,9 +140,7 @@ export default function Sidebar() {
             <DropdownMenu>
               <DropdownMenuHeader>
                 <p className="text-xs text-white/60">Signed in as</p>
-                <p className="text-sm font-semibold text-white truncate">
-                  {user?.email}
-                </p>
+                <p className="text-sm font-semibold text-white truncate">{user?.email}</p>
               </DropdownMenuHeader>
 
               <DropdownMenuContent>
@@ -169,48 +156,24 @@ export default function Sidebar() {
         </div>
       </aside>
 
-      {/* Mobile Bottom Navigation */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 bg-black/90 backdrop-blur-xl">
-        <nav className="flex items-center justify-around px-4 py-3">
-          {NAV_ITEMS.map((item) => {
-            const Icon = item.icon;
-            const active = isActive(item);
+      {/* Mobile top bar */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-40 border-b border-white/10 bg-black/85 backdrop-blur-xl">
+        <div className="flex items-center justify-between px-4 py-3">
+          <button
+            type="button"
+            onClick={() => setShowMobilePanel(true)}
+            className="w-10 h-10 rounded-xl border border-white/15 bg-white/5 flex items-center justify-center text-white"
+            aria-label="Open navigation"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
 
-            return (
-              <button
-                key={item.id}
-                onClick={() => handleNavClick(item)}
-                disabled={item.disabled}
-                className={`
-                  relative flex flex-col items-center space-y-1 px-4 py-2 rounded-lg
-                  transition-all duration-300
-                  ${active ? 'bg-[var(--banana-gold)]/10' : ''}
-                  ${item.disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-                `}
-              >
-                <Icon 
-                  className={`w-5 h-5 ${
-                    active ? 'text-[var(--banana-gold)]' : 'text-white/60'
-                  }`}
-                />
-                <span className={`text-xs ${
-                  active ? 'text-[var(--banana-gold)]' : 'text-white/60'
-                }`}>
-                  {item.label}
-                </span>
-                {active && (
-                  <motion.div
-                    layoutId="mobileActiveIndicator"
-                    className="absolute -top-1 left-1/2 -translate-x-1/2 w-8 h-1 bg-[var(--banana-gold)] rounded-b-full"
-                    transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                  />
-                )}
-              </button>
-            );
-          })}
-          
-          {/* Mobile Token + Avatar with Dropdown */}
-          <div className="flex flex-col items-center space-y-1">
+          <div className="text-sm font-semibold text-white tracking-wide">Studio</div>
+
+          <div className="flex items-center gap-2">
+            <div className="hidden xs:block scale-90 origin-right">
+              <TokenBalance />
+            </div>
             <Dropdown
               isOpen={showMobileDropdown}
               onClose={() => setShowMobileDropdown(false)}
@@ -218,7 +181,7 @@ export default function Sidebar() {
               trigger={
                 <button
                   onClick={() => setShowMobileDropdown(!showMobileDropdown)}
-                  className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-[var(--banana-gold)] to-orange-500 border-2 border-white/20"
+                  className="flex items-center justify-center w-9 h-9 rounded-full bg-gradient-to-br from-[var(--banana-gold)] to-orange-500 border-2 border-white/20"
                 >
                   {user?.username ? (
                     <span className="text-xs font-bold text-black uppercase">
@@ -233,9 +196,7 @@ export default function Sidebar() {
               <DropdownMenu>
                 <DropdownMenuHeader>
                   <p className="text-xs text-white/60">Signed in as</p>
-                  <p className="text-sm font-semibold text-white truncate">
-                    {user?.email}
-                  </p>
+                  <p className="text-sm font-semibold text-white truncate">{user?.email}</p>
                 </DropdownMenuHeader>
 
                 <DropdownMenuContent>
@@ -248,9 +209,83 @@ export default function Sidebar() {
                 </DropdownMenuContent>
               </DropdownMenu>
             </Dropdown>
-            <TokenBalance />
           </div>
-        </nav>
+        </div>
+      </div>
+
+      {/* Mobile slide-out navigation */}
+      <div
+        className={`md:hidden fixed inset-0 z-50 transition-opacity ${
+          showMobilePanel ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
+        }`}
+      >
+        <div
+          className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+          onClick={() => setShowMobilePanel(false)}
+        />
+        <div
+          className={`absolute top-0 bottom-0 left-0 w-72 max-w-[80%] bg-gray-900 border-r border-white/10 shadow-2xl transform transition-transform duration-300 ${
+            showMobilePanel ? 'translate-x-0' : '-translate-x-full'
+          }`}
+        >
+          <div className="flex items-center justify-between px-4 py-4 border-b border-white/10">
+            <div>
+              <p className="text-sm font-semibold text-white">Navigation</p>
+              <p className="text-xs text-white/50">Jump between studio tools</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowMobilePanel(false)}
+              className="w-9 h-9 rounded-full bg-white/5 border border-white/10 text-white flex items-center justify-center"
+              aria-label="Close navigation"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          <nav className="p-4 space-y-2 overflow-y-auto">
+            {NAV_ITEMS.map((item) => {
+              const Icon = item.icon;
+              const active = isActive(item);
+
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    handleNavClick(item);
+                    setShowMobilePanel(false);
+                  }}
+                  disabled={item.disabled}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border text-left transition-all ${
+                    active
+                      ? 'bg-[var(--banana-gold)]/15 border-[var(--banana-gold)]/50 text-[var(--banana-gold)]'
+                      : 'border-white/5 bg-white/5 text-white/70 hover:bg-white/10 hover:border-white/15'
+                  } ${item.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span className="text-sm font-semibold">{item.label}</span>
+                  {item.disabled && (
+                    <span className="ml-auto text-[11px] uppercase tracking-wide text-white/40">
+                      Soon
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </nav>
+
+          <div className="mt-auto border-t border-white/10 p-4 space-y-3">
+            <TokenBalance />
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-white/80 bg-white/5 border border-white/10 rounded-2xl py-2.5 hover:bg-white/10 transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+              Sign out
+            </button>
+          </div>
+        </div>
       </div>
     </>
   );

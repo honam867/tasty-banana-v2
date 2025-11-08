@@ -211,7 +211,7 @@ export default function UploadDropzone({
           setIsDragging(false);
         }}
         onDrop={handleDrop}
-        className={`relative block border-2 border-dashed rounded-2xl p-6 transition-all cursor-pointer ${
+        className={`relative block border-2 border-dashed rounded-2xl p-4 md:p-6 transition-all cursor-pointer ${
           disabled
             ? 'opacity-60 cursor-not-allowed'
             : isDragging

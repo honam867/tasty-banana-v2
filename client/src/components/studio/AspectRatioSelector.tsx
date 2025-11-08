@@ -54,7 +54,7 @@ export default function AspectRatioSelector({
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
         className={`
-          glass-button flex items-center justify-between gap-3 px-4 py-3 border-2 min-w-[100px]
+          flex items-center justify-between gap-3 glass-button p-1.5 md:px-4 md:py-3 border-2 min-w-[100px]
           ${
             isOpen
               ? 'border-[var(--banana-gold)]/80 bg-[var(--banana-gold)]/20'

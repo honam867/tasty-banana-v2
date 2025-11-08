@@ -5,6 +5,7 @@ import Lightbox from 'yet-another-react-lightbox';
 import 'yet-another-react-lightbox/styles.css';
 import { Download, X } from 'lucide-react';
 import type { GenerationImage } from '@/lib/api/generations';
+import { triggerImageDownload } from '@/lib/download';
 
 interface ImageGalleryProps {
   images: GenerationImage[];
@@ -35,26 +36,15 @@ export default function ImageGallery({
     height: 1024,
   }));
 
-  const handleDownload = async () => {
+  const handleDownload = () => {
     const currentImage = images[currentIndex];
     if (!currentImage) return;
 
-    try {
-      const response = await fetch(currentImage.imageUrl);
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `generation-${currentImage.imageId}.${
-        currentImage.mimeType.split('/')[1] || 'png'
-      }`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Download failed:', error);
-    }
+    const extension = currentImage.mimeType?.split('/')[1] || 'png';
+    triggerImageDownload(
+      currentImage.imageUrl,
+      `banana-ai-studio-${currentImage.imageId}.${extension}`
+    );
   };
 
   return (

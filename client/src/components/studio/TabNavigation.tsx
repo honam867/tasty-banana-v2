@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { usePathname, useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
-import { Sparkles, Image as ImageIcon, Wand2 } from 'lucide-react';
+import { usePathname, useRouter } from "next/navigation";
+import { motion } from "framer-motion";
+import { Sparkles, Image as ImageIcon, Wand2 } from "lucide-react";
 
 interface Tab {
   id: string;
@@ -13,22 +13,22 @@ interface Tab {
 
 const TABS: Tab[] = [
   {
-    id: 'text-to-image',
-    label: 'Text to Image',
+    id: "text-to-image",
+    label: "Text to Image",
     icon: Sparkles,
-    path: '/studio/text-to-image',
+    path: "/studio/text-to-image",
   },
   {
-    id: 'image-reference',
-    label: 'Image Reference',
+    id: "image-reference",
+    label: "Image Reference",
     icon: ImageIcon,
-    path: '/studio/image-reference',
+    path: "/studio/image-reference",
   },
   {
-    id: 'style-transfer',
-    label: 'Style Transfer',
+    id: "style-transfer",
+    label: "Style Transfer",
     icon: Wand2,
-    path: '/studio/style-transfer',
+    path: "/studio/style-transfer",
   },
 ];
 
@@ -42,9 +42,6 @@ export default function TabNavigation() {
     return pathname === path || pathname.startsWith(path);
   };
 
-  // Debug log to verify pathname
-  console.log('[TabNavigation] Current pathname:', pathname);
-
   return (
     <div className="flex-shrink-0 border-b border-white/10 bg-black/20 backdrop-blur-sm">
       <nav className="flex items-center space-x-1 px-4 overflow-x-auto scrollbar-hide h-14">
@@ -56,27 +53,27 @@ export default function TabNavigation() {
             <button
               key={tab.id}
               onClick={() => {
-                console.log('[TabNavigation] Clicked tab:', tab.path);
                 router.push(tab.path);
               }}
               className={`
                 relative flex items-center space-x-2 px-4 h-full
                 whitespace-nowrap transition-all duration-300 z-10
-                ${active 
-                  ? 'text-[var(--banana-gold)] font-semibold' 
-                  : 'text-white/60 hover:text-white'
+                ${
+                  active
+                    ? "text-[var(--banana-gold)] font-semibold"
+                    : "text-white/60 hover:text-white"
                 }
               `}
             >
               <Icon className="w-4 h-4" />
               <span className="font-medium text-sm">{tab.label}</span>
-              
+
               {/* Active Indicator */}
               {active && (
                 <motion.div
                   layoutId="tabActiveIndicator"
                   className="absolute bottom-0 left-0 right-0 h-1 bg-[var(--banana-gold)] z-20"
-                  transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
                 />
               )}
             </button>

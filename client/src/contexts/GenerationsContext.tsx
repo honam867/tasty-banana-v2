@@ -18,7 +18,7 @@ const GenerationsContext = createContext<GenerationsContextValue | null>(null);
 
 export function GenerationsProvider({ children }: { children: ReactNode }) {
   const generationsState = useGenerations({
-    limit: 20,
+    limit: 10,
     includeFailed: true,
     autoLoad: true,
   });

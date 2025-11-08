@@ -113,8 +113,8 @@ export default function SingleReferenceForm() {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <div className="flex-1 overflow-y-auto p-6 space-y-6">
-        <div className="space-y-6 max-w-4xl">
+      <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-5">
+        <div className="space-y-5 max-w-3xl md:max-w-4xl">
           <ReferenceTypeSelector
             value={referenceType}
             onChange={setReferenceType}
@@ -174,12 +174,13 @@ export default function SingleReferenceForm() {
               value={prompt}
               onChange={setPrompt}
               showToolbar
-              showHints
+              showHints={false}
               hintType={HINT_TYPES.IMAGE_REFERENCE}
               maxLength={GENERATION_LIMITS.PROMPT_MAX_LENGTH}
               disabled={isGenerating}
               autoResize={false}
               maxHeight="240px"
+              minHeight="120px"
             />
             <div className="flex justify-between text-xs text-white/40 mt-2">
               <span>Describe what you want Gemini to create.</span>
@@ -208,6 +209,7 @@ export default function SingleReferenceForm() {
         onGenerate={handleGenerate}
         isGenerating={isGenerating}
         generateLabel="Generate with Reference"
+        highlightOnReady={!generateDisabled && !isGenerating}
       />
       <AssetLibraryModal isOpen={isAssetModalOpen} onClose={() => setIsAssetModalOpen(false)} />
     </div>

@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Loader2, RefreshCw, Inbox } from 'lucide-react';
+import { Loader2, RefreshCw, Inbox, ArrowUp } from 'lucide-react';
 import { useGenerationsContext } from '@/contexts/GenerationsContext';
 import GenerationItem from './GenerationItem';
 import type { GenerationItem as GenerationItemType } from '@/lib/api/generations';
@@ -31,7 +31,9 @@ export default function GenerationsList({
 
   const [activeGenerationId, setActiveGenerationId] = useState<string | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const previousFirstIdRef = useRef<string | null>(generations[0]?.generationId ?? null);
   const generationRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const [showScrollTop, setShowScrollTop] = useState(false);
 
   // Set up intersection observer for infinite scroll
   useEffect(() => {
@@ -136,6 +138,29 @@ export default function GenerationsList({
     }
   }, [scrollToGenerationId]);
 
+  // Scroll to top when a new generation is added
+  useEffect(() => {
+    const firstId = generations[0]?.generationId ?? null;
+    if (firstId && firstId !== previousFirstIdRef.current) {
+      scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    previousFirstIdRef.current = firstId;
+  }, [generations]);
+
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      setShowScrollTop(container.scrollTop > 120);
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    return () => {
+      container.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
+
   // Separate generations by status
   const activeGenerations = generations.filter(
     (g) => g.status === 'pending' || g.status === 'processing'
@@ -147,11 +172,7 @@ export default function GenerationsList({
   const isEmpty = !loading && generations.length === 0;
 
   return (
-    <div
-      ref={scrollContainerRef}
-      className="flex flex-col h-full overflow-hidden bg-black/40 backdrop-blur-xl"
-      style={{ contain: 'layout style paint' }}
-    >
+    <div className="flex flex-col h-full overflow-hidden bg-black/40 backdrop-blur-xl" style={{ contain: 'layout style paint' }}>
       {/* Header */}
       <div className="flex-shrink-0 border-b border-white/10 p-4">
         <div className="flex items-center justify-between">
@@ -178,7 +199,7 @@ export default function GenerationsList({
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto scrollbar-hide">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto scrollbar-hide">
         {/* Error State */}
         {error && (
           <div className="p-4">
@@ -296,6 +317,19 @@ export default function GenerationsList({
           <div className="p-4 text-center">
             <p className="text-xs text-white/40">No more generations</p>
           </div>
+        )}
+
+        {showScrollTop && (
+          <button
+            type="button"
+            onClick={() =>
+              scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+            }
+            className="fixed bottom-6 right-6 z-20 p-2.5 rounded-full bg-white/10 border border-white/20 text-white shadow-lg backdrop-blur hover:bg-white/20 transition-colors"
+            aria-label="Scroll to top"
+          >
+            <ArrowUp className="w-4 h-4" />
+          </button>
         )}
       </div>
     </div>

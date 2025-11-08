@@ -1,11 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useTokenBalance } from '@/lib/api/tokens';
-import { useWebSocketEvent } from '@/hooks/useWebSocket';
+import { useTokenBalance } from '@/contexts/TokenBalanceContext';
 import { Coins, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { TokenBalanceUpdatedEvent } from '@/types/websocket';
 
 export default function TokenBalance() {
   const { balance, loading, error, refetch } = useTokenBalance();
@@ -14,22 +12,13 @@ export default function TokenBalance() {
 
   // Update display balance when hook balance changes
   useEffect(() => {
-    setDisplayBalance(balance);
-  }, [balance]);
-
-  // Listen for realtime token balance updates via WebSocket
-  useWebSocketEvent<TokenBalanceUpdatedEvent>(
-    'token_balance_updated',
-    (data) => {
+    if (balance !== null) {
       setIsUpdating(true);
-      setDisplayBalance(data.balance);
-      
-      // Trigger animation
-      setTimeout(() => {
-        setIsUpdating(false);
-      }, 500);
+      setDisplayBalance(balance);
+      const timeout = setTimeout(() => setIsUpdating(false), 500);
+      return () => clearTimeout(timeout);
     }
-  );
+  }, [balance]);
 
   if (loading) {
     return (

@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { ChevronDown } from 'lucide-react';
-import { useState, useRef, useEffect } from 'react';
-import { useDropdownPosition } from '@/hooks/useDropdownPosition';
+import { ChevronDown } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { useDropdownPosition } from "@/hooks/useDropdownPosition";
 
 interface NumberOfImagesSelectorProps {
   value: number;
@@ -10,6 +10,7 @@ interface NumberOfImagesSelectorProps {
   min?: number;
   max?: number;
   disabled?: boolean;
+  compact?: boolean;
 }
 
 export default function NumberOfImagesSelector({
@@ -18,28 +19,32 @@ export default function NumberOfImagesSelector({
   min = 1,
   max = 6,
   disabled = false,
+  compact = false,
 }: NumberOfImagesSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  
+
   // Smart positioning based on viewport
   const { position, maxHeight } = useDropdownPosition(isOpen, triggerRef, 250);
 
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         setIsOpen(false);
       }
     };
 
     if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
     }
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isOpen]);
 
@@ -58,21 +63,19 @@ export default function NumberOfImagesSelector({
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
         className={`
-          glass-button flex items-center justify-between gap-3 px-4 py-3 border-2 min-w-[140px]
+          flex items-center justify-between gap-3 glass-button p-1.5 md:px-4 md:py-3 border-2 min-w-[100px]
           ${
             isOpen
-              ? 'border-[var(--banana-gold)]/80 bg-[var(--banana-gold)]/20'
-              : 'border-white/20 bg-white/5 hover:bg-white/10 hover:border-white/30'
+              ? "border-[var(--banana-gold)]/80 bg-[var(--banana-gold)]/20"
+              : "border-white/20 bg-white/5 hover:bg-white/10 hover:border-white/30"
           }
-          ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+          ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
         `}
       >
-        <span className="text-sm font-medium text-white">
-          {value} {value === 1 ? 'Output' : 'Outputs'}
-        </span>
+        <span className="text-sm font-medium text-white">{value} Images</span>
         <ChevronDown
           className={`w-4 h-4 text-white/60 transition-transform duration-200 ${
-            isOpen ? 'rotate-180' : ''
+            isOpen ? "rotate-180" : ""
           }`}
         />
       </button>
@@ -82,7 +85,7 @@ export default function NumberOfImagesSelector({
         <div
           className={`
             absolute z-10 w-full bg-black/80 backdrop-blur-xl border border-white/20 rounded-lg shadow-lg overflow-auto
-            ${position === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'}
+            ${position === "top" ? "bottom-full mb-2" : "top-full mt-2"}
           `}
           style={{ maxHeight }}
         >
@@ -95,12 +98,12 @@ export default function NumberOfImagesSelector({
                 w-full px-4 py-2.5 text-left text-sm transition-colors duration-150
                 ${
                   count === value
-                    ? 'bg-[var(--banana-gold)]/20 text-[var(--banana-gold)]'
-                    : 'text-white/70 hover:bg-white/10'
+                    ? "bg-[var(--banana-gold)]/20 text-[var(--banana-gold)]"
+                    : "text-white/70 hover:bg-white/10"
                 }
               `}
             >
-              {count} {count === 1 ? 'Output' : 'Outputs'}
+              {count} {count === 1 ? "Output" : "Outputs"}
             </button>
           ))}
         </div>
