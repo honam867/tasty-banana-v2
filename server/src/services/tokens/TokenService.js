@@ -13,6 +13,7 @@ import {
   TOKEN_ACTOR_TYPES,
   TOKEN_PAGINATION,
 } from "../../utils/constant.js";
+import { tokenEmitter } from "../websocket/index.js";
 
 /**
  * TokenService - Handles all token operations with ACID guarantees
@@ -264,6 +265,20 @@ class TokenService {
           adminId: actor.type === TOKEN_ACTOR_TYPES.ADMIN ? actor.id : null,
         })
         .returning();
+
+      // Emit token balance update via WebSocket
+      try {
+        tokenEmitter.emitTokenBalanceUpdated(
+          userId,
+          newBalance,
+          -amount, // Negative for debit
+          reasonCode,
+          { transactionId: transaction.id, ...metadata }
+        );
+      } catch (wsError) {
+        // Log but don't fail the transaction if WebSocket fails
+        console.error("Failed to emit token balance update:", wsError);
+      }
 
       return {
         balance: newBalance,

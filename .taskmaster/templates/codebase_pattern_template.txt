@@ -1,0 +1,113 @@
+<CodebasePattern>
+<Metadata>
+Title: [Feature / Phase Name]
+Version: [Version number]
+Status: [implemented / in-progress / planned]
+Dependencies: [list of dependencies]
+RelatedFiles: [list of related files or PRDs]
+Tags: [keywords]
+</Metadata>
+    <PatternName>[Feature or Architectural Pattern Name]</PatternName>
+    <Context>
+        Describe the context or problem this pattern/feature solves.
+        Example: Used for syncing external PMS data into MongoDB with WebSocket orchestration.
+    </Context>
+
+    <CoreLogic>
+        Explain the high-level logic flow:
+        - What initiates the process (trigger, event, API call, cron job, etc.)
+        - What steps are taken
+        - What are the main decision points
+        - What the expected outcomes or states are
+    </CoreLogic>
+
+    <Architecture>
+        Summarize the overall structure:
+        - Which layers (API, WebSocket, Service, Model, etc.) are involved
+        - Briefly how data flows through them
+    </Architecture>
+
+    <Components>
+        <Component>
+            <File>path/to/file.ts</File>
+            <Role>[Purpose or logic this file handles]</Role>
+            <KeyFunctions>
+                - [FunctionName]: [Short description]
+                - [AnotherFunction]: [What it does]
+            </KeyFunctions>
+            <Interactions>
+                - Calls [OtherComponent or API]
+                - Emits [EventName]
+                - Depends on [DependencyName]
+            </Interactions>
+        </Component>
+        <!-- Repeat <Component> block for each major file -->
+    </Components>
+
+    <DataFlow>
+        <Trigger>
+            Describe how the process is started.
+        </Trigger>
+        <Sequence>
+            Step-by-step order of events and data transformations.
+        </Sequence>
+        <Completion>
+            Describe how the process ends (e.g., DB update, response emitted).
+        </Completion>
+    </DataFlow>
+
+    <API>
+        <Endpoint>[API route or event name]</Endpoint>
+        <Method>[GET / POST / WS Event]</Method>
+        <Request>
+            Describe request structure or payload.
+            Example:
+            {
+              "jobId": "string",
+              "data": { ... }
+            }
+        </Request>
+        <Response>
+            Describe expected response payload or event.
+            Example:
+            {
+              "status": "success",
+              "synced": 12
+            }
+        </Response>
+    </API>
+
+    <Dependencies>
+        - [Library or internal dependency name]
+        - [Database model / external service]
+    </Dependencies>
+
+    <InteractionMap>
+        Diagram-style text description of how components call or signal each other.
+        Example:
+        CronJob -> WebSocketManager -> Client -> SyncResponseHandler -> Database
+    </InteractionMap>
+
+    <ErrorHandling>
+        Describe what happens when an error occurs, how it’s logged or retried.
+    </ErrorHandling>
+
+    <PerformanceNotes>
+        - Any batching, caching, or async behavior
+        - How scalability is handled
+    </PerformanceNotes>
+
+    <Extensibility>
+        Describe how to extend this pattern for new entities or modules.
+    </Extensibility>
+
+    <SecurityConsiderations>
+        - Authentication / Authorization
+        - Data validation and sanitization
+        - Sensitive field handling
+    </SecurityConsiderations>
+
+    <ExampleUseCase>
+        Provide one concrete example scenario showing full data or event flow.
+    </ExampleUseCase>
+</CodebasePattern>

@@ -26,6 +26,9 @@ export const WS_EVENTS = {
   GENERATION_PROGRESS: "generation_progress",
   GENERATION_COMPLETED: "generation_completed",
   GENERATION_FAILED: "generation_failed",
+  
+  // Token events
+  TOKEN_BALANCE_UPDATED: "token_balance_updated",
 };
 
 export const WS_ROOMS = {

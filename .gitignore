@@ -28,3 +28,6 @@ node_modules/
 .playwright-mcp
 admin-dashboard-specs
 mermaid
+
+# Documentation archives
+docs/archive/

@@ -44,10 +44,27 @@ export interface GenerationProgressEvent {
 export interface GenerationCompletedEvent {
   generationId: string;
   result: {
-    id: string;
-    imageUrl: string;
-    prompt: string;
-    [key: string]: unknown;
+    generationId: string;
+    images: Array<{
+      imageUrl: string;
+      imageId: string;
+      mimeType: string;
+      sizeBytes: number;
+    }>;
+    numberOfImages: number;
+    metadata: {
+      prompt: string;
+      aspectRatio: string;
+    };
+    tokens?: {
+      used: number;
+      remaining: number;
+    };
+    processing?: {
+      timeMs: number;
+      status: string;
+    };
+    createdAt: string;
   };
   timestamp: string;
 }
@@ -78,6 +95,15 @@ export interface JobFailedEvent {
   timestamp: string;
 }
 
+// Token Events
+export interface TokenBalanceUpdatedEvent {
+  balance: number;
+  change: number;
+  reason: string;
+  transactionId?: string;
+  timestamp: string;
+}
+
 // WebSocket Event Names (matching server config)
 export const WS_EVENTS = {
   // Connection
@@ -102,6 +128,9 @@ export const WS_EVENTS = {
   JOB_PROGRESS: 'job_progress',
   JOB_COMPLETED: 'job_completed',
   JOB_FAILED: 'job_failed',
+  
+  // Token events
+  TOKEN_BALANCE_UPDATED: 'token_balance_updated',
 } as const;
 
 export type WebSocketEventName = typeof WS_EVENTS[keyof typeof WS_EVENTS];

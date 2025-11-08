@@ -1,0 +1,103 @@
+
+<ImplementationRecordTemplate>
+
+<Metadata>
+Title: [Feature / Phase Name]
+Version: [Version number]
+Phase: [Phase number or name]
+Status: [implemented / in-progress / planned]
+ImplementationDate: [YYYY-MM-DD]
+EstimatedEffort: [time estimate]
+ActualEffort: [time taken]
+Priority: [high / medium / low]
+Dependencies: [list of dependencies]
+RelatedFiles: [list of related files or PRDs]
+Tags: [keywords]
+</Metadata>
+
+<DocumentOverview>
+Purpose: [Short summary of the feature and what it achieves]
+Branch: [git branch name]
+Status: [e.g., Implemented and ready for testing]
+</DocumentOverview>
+
+<WhatWasImplemented>
+CoreFeature: [Describe the main purpose and flow of the implementation.]
+KeyAchievements: [Highlights — e.g., reusable architecture, performance gain, feature parity, etc.]
+</WhatWasImplemented>
+
+<FilesCreated>
+File: path/to/file.ts
+Purpose: [Short description]
+WhatItDoes:
+- [Feature 1]
+- [Feature 2]
+- [Feature 3]
+WhyCreated: [Rationale]
+Dependencies: [List dependencies]
+ExampleUsage:
+{ example: "output or transformation" }
+</FilesCreated>
+
+<FilesModified>
+File: path/to/modified/file.ts
+ChangesMade: [Old vs new design summary or code snippet]
+WhyChanged: [Reason for modification]
+</FilesModified>
+
+<ArchitectureOverview>
+FlowSummary: [Explain the system flow or event sequence in steps or diagram form.]
+ComponentInteraction:
+ComponentA -> ComponentB -> ComponentC
+</ArchitectureOverview>
+
+<KeyDecisions>
+Decision1:
+    Rationale: [Why it was made]
+    Impact: [Resulting benefits / trade-offs]
+Decision2:
+    Rationale: [Why it was made]
+    Impact: [Resulting benefits / trade-offs]
+</KeyDecisions>
+
+<DatabaseChanges>
+Collection: [collection name]
+Changes: [fields/indexes added or modified]
+Notes: [migration or compatibility notes]
+</DatabaseChanges>
+
+<ConfigurationReference>
+type: "pmsType"
+baseUrl: "..."
+endpoints: { ... }
+fieldMappings: { ... }
+</ConfigurationReference>
+
+<KnownIssues>
+Issue1:
+    Description: [Issue description]
+    Impact: [High / Medium / Low]
+    PlannedFix: [Fix plan or timeline]
+</KnownIssues>
+
+<SecurityNotes>
+Authentication: [rules]
+Authorization: [access policies]
+Validation: [data validation approach]
+ErrorHandling: [policy or strategy]
+</SecurityNotes>
+
+<References>
+- [linked specs, PRDs, or mock-data docs]
+- [related modules or packages]
+</References>
+
+<CommitSummary>
+feat: [Short description of implementation]
+- [List of main changes]
+- [Mention breaking changes if any]
+Migration: [if needed]
+Co-authored-by: [bot or user]
+</CommitSummary>
+
+</ImplementationRecordTemplate>

@@ -16,6 +16,10 @@ export * from "./middleware/auth.js";
 // Export utilities
 export * as wsUtils from "./utils.js";
 
+// Export emitters
+export { default as imageGenerationEmitter } from "./emitters/imageGeneration.emitter.js";
+export { default as tokenEmitter } from "./emitters/token.emitter.js";
+
 // Export managers
 export { connectionManager, eventRegistry };
 
