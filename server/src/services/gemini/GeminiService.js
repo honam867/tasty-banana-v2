@@ -18,14 +18,22 @@ class GeminiService {
       throw new Error("GOOGLE_AI_API_KEY environment variable is required");
     }
 
-    const modelName = process.env.GEMINI_MODEL || GEMINI_CONFIG.DEFAULT_MODEL;
     this.genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY);
-    this.model = this.genAI.getGenerativeModel({ model: modelName });
 
     // Rate limiting: 15 requests per minute for free tier
     this.rateLimitWindow = GEMINI_CONFIG.RATE_LIMIT_WINDOW_MS;
     this.maxRequestsPerWindow = GEMINI_CONFIG.MAX_REQUESTS_PER_WINDOW;
     this.requestHistory = [];
+  }
+
+  /**
+   * Get Gemini model instance (supports dynamic model selection)
+   * @param {string} modelName - Optional model name (uses default if not specified)
+   * @returns {Object} Google Generative AI model instance
+   */
+  getModelInstance(modelName) {
+    const model = modelName || process.env.GEMINI_MODEL || GEMINI_CONFIG.DEFAULT_MODEL;
+    return this.genAI.getGenerativeModel({ model });
   }
 
   /**
@@ -120,16 +128,17 @@ class GeminiService {
       tokenCost,
       IMAGE_OPERATION_TYPES.TEXT_TO_IMAGE,
       async () => {
+        const model = this.getModelInstance(options.modelName);
         const generationConfig = this.buildGenerationConfig(options);
 
-        const result = await this.model.generateContent({
+        const result = await model.generateContent({
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig,
         });
 
         return this.extractImage(result);
       },
-      { metadata: { prompt, ...options } }
+      { metadata: { prompt, modelName: options.modelName, ...options } }
     );
   }
 
@@ -149,6 +158,8 @@ class GeminiService {
       tokenCost,
       IMAGE_OPERATION_TYPES.IMAGE_REFERENCE,
       async () => {
+        const model = this.getModelInstance(options.modelName);
+        
         // Load reference image
         const imageBase64 = await this.imageToBase64(referenceImagePath);
         const mimeType = this.getMimeType(referenceImagePath);
@@ -156,7 +167,7 @@ class GeminiService {
         const generationConfig = this.buildGenerationConfig(options);
 
         // Pattern from NANO_BANANA_SETUP_GUIDE: text prompt + reference image
-        const result = await this.model.generateContent({
+        const result = await model.generateContent({
           contents: [
             {
               parts: [
@@ -175,7 +186,73 @@ class GeminiService {
 
         return this.extractImage(result);
       },
-      { metadata: { prompt, referenceImagePath, ...options } }
+      { metadata: { prompt, referenceImagePath, modelName: options.modelName, ...options } }
+    );
+  }
+
+  /**
+   * Generate image with multiple reference images
+   * Target image + multiple reference images for composition/styling
+   * 
+   * @param {string} userId - User ID
+   * @param {number} tokenCost - Token cost
+   * @param {string} targetImagePath - Path/URL to target image (main subject)
+   * @param {Array<string>} referenceImagePaths - Array of paths/URLs to reference images
+   * @param {string} prompt - Enhanced prompt
+   * @param {Object} options - Generation options
+   */
+  async generateWithMultipleReferences(userId, tokenCost, targetImagePath, referenceImagePaths, prompt, options = {}) {
+    return this.executeWithTokens(
+      userId,
+      tokenCost,
+      IMAGE_OPERATION_TYPES.IMAGE_MULTIPLE_REFERENCE,
+      async () => {
+        const model = this.getModelInstance(options.modelName);
+        
+        // Load target image
+        const targetBase64 = await this.imageToBase64(targetImagePath);
+        const targetMimeType = this.getMimeType(targetImagePath);
+
+        // Load all reference images
+        const referenceImages = await Promise.all(
+          referenceImagePaths.map(async (refPath) => ({
+            data: await this.imageToBase64(refPath),
+            mimeType: this.getMimeType(refPath),
+          }))
+        );
+
+        const generationConfig = this.buildGenerationConfig(options);
+
+        // Build content with text prompt + target + multiple references
+        // Pattern: text prompt + target image + reference images (in order)
+        const parts = [
+          { text: prompt }, // Enhanced prompt with instructions
+          {
+            inlineData: {
+              data: targetBase64,
+              mimeType: targetMimeType,
+            },
+          },
+          ...referenceImages.map((refImg) => ({
+            inlineData: {
+              data: refImg.data,
+              mimeType: refImg.mimeType,
+            },
+          })),
+        ];
+
+        const result = await model.generateContent({
+          contents: [
+            {
+              parts,
+            },
+          ],
+          generationConfig,
+        });
+
+        return this.extractImage(result);
+      },
+      { metadata: { prompt, targetImagePath, referenceCount: referenceImagePaths.length, modelName: options.modelName, ...options } }
     );
   }
 

@@ -82,3 +82,9 @@ export const uploadStyleTransfer = createImageUpload().fields([
   { name: 'contentImage', maxCount: 1 },
   { name: 'styleImage', maxCount: 1 }
 ]);
+
+// Multiple reference upload (target + references)
+export const uploadMultipleReference = createImageUpload().fields([
+  { name: 'targetImage', maxCount: 1 },
+  { name: 'referenceImages', maxCount: GEMINI_LIMITS.REFERENCE_IMAGES_MAX }
+]);

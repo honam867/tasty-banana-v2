@@ -184,6 +184,69 @@ export const validateImageReference = [
 ];
 
 /**
+ * Validate multiple reference request
+ */
+export const validateImageMultipleReference = [
+  body('prompt')
+    .notEmpty().withMessage('Prompt is required')
+    .isLength({ 
+      min: GEMINI_LIMITS.PROMPT_MIN_LENGTH, 
+      max: GEMINI_LIMITS.PROMPT_MAX_LENGTH 
+    })
+    .withMessage(`Prompt must be ${GEMINI_LIMITS.PROMPT_MIN_LENGTH}-${GEMINI_LIMITS.PROMPT_MAX_LENGTH} characters`),
+  body('targetImageId')
+    .optional({ values: 'falsy' })
+    .isUUID()
+    .withMessage('Invalid target image ID'),
+  body('referenceImageIds')
+    .optional({ values: 'falsy' })
+    .custom((value) => {
+      // Can be JSON string or array
+      let ids = value;
+      if (typeof value === 'string') {
+        try {
+          ids = JSON.parse(value);
+        } catch {
+          throw new Error('referenceImageIds must be valid JSON array');
+        }
+      }
+      if (!Array.isArray(ids)) {
+        throw new Error('referenceImageIds must be an array');
+      }
+      if (ids.length < GEMINI_LIMITS.REFERENCE_IMAGES_MIN || ids.length > GEMINI_LIMITS.REFERENCE_IMAGES_MAX) {
+        throw new Error(`Reference images must be between ${GEMINI_LIMITS.REFERENCE_IMAGES_MIN} and ${GEMINI_LIMITS.REFERENCE_IMAGES_MAX}`);
+      }
+      // Validate each ID is UUID
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      for (const id of ids) {
+        if (!uuidRegex.test(id)) {
+          throw new Error('All reference image IDs must be valid UUIDs');
+        }
+      }
+      return true;
+    }),
+  body('promptTemplateId')
+    .optional({ values: 'falsy' })
+    .isUUID()
+    .withMessage('Invalid prompt template ID'),
+  body('aspectRatio')
+    .optional({ values: 'falsy' })
+    .isIn(GEMINI_ASPECT_RATIOS)
+    .withMessage(`Invalid aspect ratio. Allowed: ${GEMINI_ASPECT_RATIOS.join(', ')}`),
+  body('numberOfImages')
+    .optional({ values: 'falsy' })
+    .isInt({ 
+      min: GEMINI_LIMITS.NUMBER_OF_IMAGES_MIN, 
+      max: GEMINI_LIMITS.NUMBER_OF_IMAGES_MAX 
+    })
+    .withMessage(`Number of images must be between ${GEMINI_LIMITS.NUMBER_OF_IMAGES_MIN} and ${GEMINI_LIMITS.NUMBER_OF_IMAGES_MAX}`),
+  body('projectId')
+    .optional({ values: 'falsy' })
+    .isUUID()
+    .withMessage('Invalid project ID')
+];
+
+/**
  * Validate request and cleanup files on failure
  * This middleware should be used after all body validators
  */

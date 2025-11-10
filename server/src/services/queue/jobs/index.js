@@ -20,6 +20,7 @@ export const JOB_TYPES = {
   IMAGE_GENERATION: {
     TEXT_TO_IMAGE: "text-to-image",
     IMAGE_REFERENCE: "image-reference",
+    IMAGE_MULTIPLE_REFERENCE: "image-multiple-reference",
     IMAGE_EDIT_SIMPLE: "image-edit-simple",
     IMAGE_EDIT_COMPLEX: "image-edit-complex",
     STYLE_TRANSFER: "style-transfer",

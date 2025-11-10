@@ -60,6 +60,7 @@ export const TOKEN_PAGINATION = {
 export const IMAGE_OPERATION_TYPES = {
   TEXT_TO_IMAGE: "text_to_image",
   IMAGE_REFERENCE: "image_reference",
+  IMAGE_MULTIPLE_REFERENCE: "image_multiple_reference",
 };
 
 // Image Reference Types
@@ -70,6 +71,14 @@ export const IMAGE_REFERENCE_TYPES = {
 };
 
 export const IMAGE_REFERENCE_TYPES_ARRAY = ['subject', 'face', 'full_image'];
+
+// Prompt Template Categories
+export const PROMPT_TEMPLATE_CATEGORIES = {
+  GENERAL: 'general',
+  TEXT_TO_IMAGE: 'text_to_image',
+  SINGLE_REFERENCE: 'single_reference',
+  MULTIPLE_REFERENCE: 'multiple_reference'
+};
 
 // Gemini Image Generation Constants
 export const GEMINI_ASPECT_RATIOS = ['1:1', '16:9', '9:16', '4:3', '3:4'];
@@ -127,6 +136,16 @@ export const GEMINI_CONFIG = {
   MAX_RETRY_ATTEMPTS: 3
 };
 
+// Supported Gemini Models (future-ready for multiple models)
+export const GEMINI_MODELS = {
+  FLASH_IMAGE: 'gemini-2.5-flash-image',  // Currently the only image generation model
+  // Future models will be added here when Google releases them:
+  // FLASH_IMAGE_PRO: 'gemini-2.5-flash-image-pro',
+  // PRO_IMAGE: 'gemini-2.5-pro-image',
+};
+
+export const GEMINI_SUPPORTED_MODELS = Object.values(GEMINI_MODELS);
+
 export const GEMINI_LIMITS = {
   PROMPT_MIN_LENGTH: 5,
   PROMPT_MAX_LENGTH: 2000,
@@ -141,7 +160,10 @@ export const GEMINI_LIMITS = {
   COMPOSE_IMAGES_MIN: 2,
   COMPOSE_IMAGES_MAX: 3,
   NUMBER_OF_IMAGES_MIN: 1,
-  NUMBER_OF_IMAGES_MAX: 4
+  NUMBER_OF_IMAGES_MAX: 4,
+  REFERENCE_IMAGES_MIN: 1,
+  REFERENCE_IMAGES_MAX: 5,
+  TOTAL_IMAGES_MAX: 6 // 1 target + 5 references
 };
 
 export const GEMINI_ALLOWED_TYPES = [

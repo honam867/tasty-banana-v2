@@ -42,7 +42,7 @@ export const createGenerationRecord = async (
         operationTypeId,
         prompt,
         status: GENERATION_STATUS.PENDING,
-        model: process.env.GEMINI_MODEL || GEMINI_CONFIG.DEFAULT_MODEL,
+        model: options.model || process.env.GEMINI_MODEL || GEMINI_CONFIG.DEFAULT_MODEL,
         tokensUsed: 0,
         metadata: JSON.stringify({
           ...options,

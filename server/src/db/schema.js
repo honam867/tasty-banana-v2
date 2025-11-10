@@ -201,6 +201,11 @@ export const imageGenerations = pgTable(
     referenceType: varchar("reference_type", { length: 50 }),
     // Values: 'subject', 'face', 'full_image', null
 
+    // Multiple reference fields (for image_multiple_reference operation type)
+    targetImageId: uuid("target_image_id").references(() => uploads.id),
+    referenceImageIds: jsonb("reference_image_ids"), // Array of UUID strings
+    promptTemplateId: uuid("prompt_template_id").references(() => promptTemplates.id),
+
     // AI parameters
     model: varchar("model", { length: 100 })
       .notNull()

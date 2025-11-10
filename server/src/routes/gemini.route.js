@@ -1,9 +1,10 @@
 import express from "express";
 import multer from "multer";
-import { textToImage, imageReference } from "../controllers/gemini.controller.js";
+import { textToImage, imageReference, imageMultipleReference } from "../controllers/gemini.controller.js";
 import {
   validateTextToImage,
   validateImageReference,
+  validateImageMultipleReference,
   // validateSimpleEdit,
   // validateComplexEdit,
   // validateComposition,
@@ -14,11 +15,13 @@ import {
 } from "../middlewares/validators.js";
 import {
   uploadSingle,
+  uploadMultipleReference,
   // uploadMultiple,
   // uploadStyleTransfer,
 } from "../middlewares/upload.js";
 import { verifyToken } from "../middlewares/tokenHandler.js";
 import { asyncHandler } from "../middlewares/errorHandler.js";
+import { validateModel } from "../middlewares/modelValidator.js";
 import { GEMINI_LIMITS, GEMINI_ERRORS } from "../utils/constant.js";
 
 const router = express.Router();
@@ -64,6 +67,10 @@ const router = express.Router();
  *                 format: uuid
  *                 example: 660e8400-e29b-41d4-a716-446655440000
  *                 description: Optional prompt template ID for style enhancement (from /api/prompt-templates)
+ *               model:
+ *                 type: string
+ *                 example: gemini-2.5-flash-image
+ *                 description: Optional model selection (defaults to gemini-2.5-flash-image). Future-ready for multiple models.
  *     responses:
  *       202:
  *         description: Image generation job queued successfully. Listen to WebSocket for progress updates.
@@ -93,6 +100,7 @@ const router = express.Router();
 router.post(
   "/text-to-image",
   verifyToken,
+  validateModel,
   validateTextToImage,
   validateRequestWithCleanup,
   asyncHandler(textToImage)
@@ -144,6 +152,10 @@ router.post(
  *               projectId:
  *                 type: string
  *                 format: uuid
+ *               model:
+ *                 type: string
+ *                 example: gemini-2.5-flash-image
+ *                 description: Optional model selection (defaults to gemini-2.5-flash-image). Future-ready for multiple models.
  *     responses:
  *       202:
  *         description: Image reference generation job queued successfully
@@ -162,6 +174,7 @@ router.post(
   "/image-reference",
   verifyToken,
   uploadSingle,
+  validateModel,
   validateImageReference,
   validateRequestWithCleanup,
   asyncHandler(imageReference)
@@ -197,5 +210,97 @@ router.use((error, req, res, next) => {
   }
   next(error);
 });
+
+/**
+ * @swagger
+ * /generate/image-multiple-reference:
+ *   post:
+ *     summary: Generate image(s) using target + multiple reference images (200 tokens per image)
+ *     tags: [Gemini AI]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - prompt
+ *             properties:
+ *               prompt:
+ *                 type: string
+ *                 example: Change the model's outfit to a professional business suit with these accessories
+ *               targetImage:
+ *                 type: string
+ *                 format: binary
+ *                 description: Target image file (main subject to edit/enhance) - OR provide targetImageId
+ *               targetImageId:
+ *                 type: string
+ *                 format: uuid
+ *                 example: 550e8400-e29b-41d4-a716-446655440000
+ *                 description: UUID of existing target image (alternative to file upload)
+ *               referenceImages:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *                 description: 1-5 reference image files (accessories, styles, elements) - OR provide referenceImageIds
+ *               referenceImageIds:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: uuid
+ *                 example: ["660e8400-e29b-41d4-a716-446655440000", "770e8400-e29b-41d4-a716-446655440000"]
+ *                 description: Array of UUIDs for existing reference images (alternative to file upload)
+ *               promptTemplateId:
+ *                 type: string
+ *                 format: uuid
+ *                 example: 880e8400-e29b-41d4-a716-446655440000
+ *                 description: Optional prompt template ID for styling (system prompt + user prompt)
+ *               aspectRatio:
+ *                 type: string
+ *                 example: 1:1
+ *                 description: Image aspect ratio (1:1, 16:9, 9:16, 4:3, 3:4)
+ *               numberOfImages:
+ *                 type: integer
+ *                 minimum: 1
+ *                 maximum: 4
+ *                 default: 1
+ *                 example: 1
+ *                 description: Number of images to generate (1-4)
+ *               projectId:
+ *                 type: string
+ *                 format: uuid
+ *                 description: Optional project ID to associate generation
+ *     responses:
+ *       202:
+ *         description: Multiple reference generation job queued successfully
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: true
+ *               data:
+ *                 jobId: "12345"
+ *                 generationId: "550e8400-e29b-41d4-a716-446655440000"
+ *                 targetImageId: "660e8400-e29b-41d4-a716-446655440000"
+ *                 referenceImageIds: ["770e8400-e29b-41d4-a716-446655440000", "880e8400-e29b-41d4-a716-446655440000"]
+ *                 status: "pending"
+ *                 message: "Multiple reference generation job queued successfully"
+ *                 websocketEvents:
+ *                   progress: "generation_progress"
+ *                   completed: "generation_completed"
+ *                   failed: "generation_failed"
+ *       400:
+ *         description: Validation error or missing images
+ */
+router.post(
+  "/image-multiple-reference",
+  verifyToken,
+  uploadMultipleReference,
+  validateImageMultipleReference,
+  validateRequestWithCleanup,
+  asyncHandler(imageMultipleReference)
+);
 
 export default router;
