@@ -127,7 +127,7 @@ export const TEMP_FILE_CONFIG = {
 
 // Gemini Model Configuration
 export const GEMINI_CONFIG = {
-  DEFAULT_MODEL: 'gemini-2.5-flash-image',
+  DEFAULT_MODEL: process.env.GEMINI_MODEL,
   DEFAULT_TEMPERATURE: 0.7,
   DEFAULT_TOP_K: 40,
   DEFAULT_TOP_P: 0.95,
@@ -138,7 +138,7 @@ export const GEMINI_CONFIG = {
 
 // Supported Gemini Models (future-ready for multiple models)
 export const GEMINI_MODELS = {
-  FLASH_IMAGE: 'gemini-2.5-flash-image',  // Currently the only image generation model
+  FLASH_IMAGE: process.env.GEMINI_MODEL,  // Currently the only image generation model
   // Future models will be added here when Google releases them:
   // FLASH_IMAGE_PRO: 'gemini-2.5-flash-image-pro',
   // PRO_IMAGE: 'gemini-2.5-pro-image',
