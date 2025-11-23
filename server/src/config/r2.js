@@ -1,7 +1,7 @@
 import dotenv from "dotenv";
 dotenv.config();
 
-import { S3Client } from "@aws-sdk/client-s3";
+import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
 import lodash from "lodash";
 const { get, isEmpty } = lodash;
@@ -215,6 +215,31 @@ export const uploadMultipleToR2 = async (uploads) => {
 };
 
 /**
+ * Delete a file from R2 storage
+ * @param {string} key - Object key/path in R2
+ * @returns {Promise<void>}
+ */
+export const deleteFromR2 = async (key) => {
+  if (!key) {
+    throw new Error("R2 object key is required for deletion");
+  }
+
+  const client = getR2Client();
+  const bucket = getR2Bucket();
+
+  try {
+    const command = new DeleteObjectCommand({
+      Bucket: bucket,
+      Key: key,
+    });
+
+    await client.send(command);
+  } catch (error) {
+    throw new Error(`Failed to delete file from R2: ${error.message}`);
+  }
+};
+
+/**
  * Test R2 connection by attempting to list buckets
  * This is useful for verifying credentials and configuration
  * @returns {Promise<boolean>} True if connection successful
@@ -236,6 +261,7 @@ export default {
   generatePublicUrl,
   uploadToR2,
   uploadMultipleToR2,
+  deleteFromR2,
   testR2Connection
 };
 

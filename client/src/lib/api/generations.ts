@@ -20,6 +20,8 @@ export interface GenerationItem {
   progress: number;
   createdAt: string;
   completedAt?: string;
+  referenceType?: ReferenceType;
+  referenceImages?: GenerationImage[];
   metadata: {
     prompt: string;
     numberOfImages: number;

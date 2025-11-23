@@ -23,6 +23,7 @@ import { uploads } from "../../../db/schema.js";
 import { and, eq } from "drizzle-orm";
 import tempFileManager from "../../../utils/tempFileManager.js";
 import logger from "../../../config/logger.js";
+import { buildMultipleReferencePrompt } from "../../../utils/multipleReferencePrompts.js";
 
 /**
  * Process text-to-image generation job
@@ -304,7 +305,7 @@ export async function processImageReference(job) {
     if (tempFileId) {
       // Check if temp file still exists
       referenceImagePath = tempFileManager.getTempFilePath(tempFileId);
-      
+
       if (referenceImagePath) {
         usedTempFile = true;
         logger.info(
@@ -322,7 +323,9 @@ export async function processImageReference(job) {
       const referenceImage = await db
         .select()
         .from(uploads)
-        .where(and(eq(uploads.id, referenceImageId), eq(uploads.userId, userId)))
+        .where(
+          and(eq(uploads.id, referenceImageId), eq(uploads.userId, userId))
+        )
         .limit(1);
 
       if (!referenceImage.length) {
@@ -522,7 +525,7 @@ export async function processImageMultipleReference(job) {
     );
 
     // Load target image (temp cache or R2)
-    const targetTempInfo = tempFileIds.find(t => t.type === 'target');
+    const targetTempInfo = tempFileIds.find((t) => t.type === "target");
     if (targetTempInfo) {
       targetImagePath = tempFileManager.getTempFilePath(targetTempInfo.id);
       if (targetImagePath) {
@@ -556,12 +559,14 @@ export async function processImageMultipleReference(job) {
       let refPath = null;
 
       // Try temp file first
-      const refTempInfo = tempFileIds.find(t => t.uploadId === refId);
+      const refTempInfo = tempFileIds.find((t) => t.uploadId === refId);
       if (refTempInfo) {
         refPath = tempFileManager.getTempFilePath(refTempInfo.id);
         if (refPath) {
           usedTempFiles.push(refTempInfo.id);
-          logger.info(`Using temp file for reference ${refId}: ${refTempInfo.id}`);
+          logger.info(
+            `Using temp file for reference ${refId}: ${refTempInfo.id}`
+          );
         }
       }
 
@@ -574,7 +579,9 @@ export async function processImageMultipleReference(job) {
           .limit(1);
 
         if (!refImage) {
-          throw new Error(`Reference image ${refId} not found or access denied`);
+          throw new Error(
+            `Reference image ${refId} not found or access denied`
+          );
         }
 
         refPath = refImage.publicUrl;
@@ -593,7 +600,6 @@ export async function processImageMultipleReference(job) {
     );
 
     // Build enhanced prompt using template system
-    const { buildMultipleReferencePrompt } = await import('../../../utils/multipleReferencePrompts.js');
     const enhancedPrompt = await buildMultipleReferencePrompt(
       prompt,
       promptTemplateId,
@@ -615,7 +621,9 @@ export async function processImageMultipleReference(job) {
         userId,
         generationId,
         Math.round(currentProgress),
-        `Generating image ${i + 1}/${numberOfImages} with multiple references...`
+        `Generating image ${
+          i + 1
+        }/${numberOfImages} with multiple references...`
       );
 
       // Call Gemini service with target + multiple references
@@ -671,14 +679,17 @@ export async function processImageMultipleReference(job) {
       0
     );
     // Get remaining balance from last generation result
-    const remainingBalance = generationResults[generationResults.length - 1]?.remainingBalance || 0;
+    const remainingBalance =
+      generationResults[generationResults.length - 1]?.remainingBalance || 0;
 
     // Upload all images to R2 concurrently
     const imagesToUpload = generationResults.map((genResult) => ({
       source: genResult.result,
       userId,
       purpose: UPLOAD_PURPOSE.GENERATION_OUTPUT,
-      title: `Multi-ref: ${prompt.substring(0, 50)}... (${genResult.imageNumber}/${numberOfImages})`,
+      title: `Multi-ref: ${prompt.substring(0, 50)}... (${
+        genResult.imageNumber
+      }/${numberOfImages})`,
       metadata: {
         generationId,
         aspectRatio,

@@ -78,7 +78,7 @@ export default function TextToImagePage() {
       console.error('[Text-to-Image] Generation error:', err);
       setIsGenerating(false);
       setError(
-        err.response?.data?.message || 'Failed to start generation. Please try again.'
+        err.response?.data?.message || err.response?.data?.error?.message || 'Failed to start generation. Please try again.'
       );
     }
   };

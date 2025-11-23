@@ -4,116 +4,10 @@ const { get } = lodash;
 import { db } from "../db/drizzle.js";
 import { imageGenerations, uploads } from "../db/schema.js";
 import { eq, and, inArray, desc, sql, lt, or } from "drizzle-orm";
-import { HTTP_STATUS, GENERATION_STATUS } from "../utils/constant.js";
-import { sendSuccess, throwError } from "../utils/response.js";
-import {
-  decodeCursor,
-  createCursorResponse,
-} from "../utils/cursor.helper.js";
+import { GENERATION_STATUS } from "../utils/constant.js";
+import { sendSuccess } from "../utils/response.js";
+import { decodeCursor, createCursorResponse } from "../utils/cursor.helper.js";
 import logger from "../config/logger.js";
-
-/**
- * GET /api/generations/queue/:generationId - Get generation status
- * Returns the current status and progress of a generation job
- */
-export const getGenerationStatus = async (req, res, next) => {
-  try {
-    const userId = get(req, "user.id");
-    const { generationId } = req.params;
-
-    if (!generationId) {
-      throwError("Generation ID is required", HTTP_STATUS.BAD_REQUEST);
-    }
-
-    // Fetch generation record from database
-    const generation = await db
-      .select()
-      .from(imageGenerations)
-      .where(
-        and(
-          eq(imageGenerations.id, generationId),
-          eq(imageGenerations.userId, userId) // Authorization check
-        )
-      )
-      .limit(1);
-
-    if (!generation.length) {
-      throwError(
-        "Generation not found or access denied",
-        HTTP_STATUS.NOT_FOUND
-      );
-    }
-
-    const generationData = generation[0];
-
-    // Try to get job status from queue if still processing
-    let progress = 0;
-
-    if (
-      generationData.status === GENERATION_STATUS.PENDING ||
-      generationData.status === GENERATION_STATUS.PROCESSING
-    ) {
-      progress = generationData.status === GENERATION_STATUS.PENDING ? 0 : 50;
-    } else if (generationData.status === GENERATION_STATUS.COMPLETED) {
-      progress = 100;
-    }
-
-    // Parse metadata and AI metadata
-    const metadata = generationData.metadata
-      ? JSON.parse(generationData.metadata)
-      : {};
-    const aiMetadata = generationData.aiMetadata
-      ? JSON.parse(generationData.aiMetadata)
-      : {};
-
-    // Build response
-    const response = {
-      generationId: generationData.id,
-      status: generationData.status,
-      progress,
-      createdAt: generationData.createdAt,
-      completedAt: generationData.completedAt,
-      metadata: {
-        prompt: metadata.originalPrompt,
-        numberOfImages: metadata.numberOfImages || 1,
-        aspectRatio: metadata.aspectRatio || "1:1",
-        projectId: metadata.projectId,
-      },
-      tokensUsed: generationData.tokensUsed,
-      processingTimeMs: generationData.processingTimeMs,
-    };
-
-    // Add images if completed
-    if (
-      generationData.status === GENERATION_STATUS.COMPLETED &&
-      aiMetadata.imageIds
-    ) {
-      // Fetch upload records for the images
-      const imageIds = aiMetadata.imageIds;
-      const images = await db
-        .select()
-        .from(uploads)
-        .where(inArray(uploads.id, imageIds));
-
-      response.images = images.map((img) => ({
-        imageId: img.id,
-        imageUrl: img.publicUrl,
-        mimeType: img.mimeType,
-        sizeBytes: img.sizeBytes,
-      }));
-    }
-
-    // Add error if failed
-    if (generationData.status === GENERATION_STATUS.FAILED) {
-      response.error = generationData.errorMessage;
-    }
-
-    sendSuccess(res, response, "Generation status retrieved successfully");
-  } catch (error) {
-    logger.error("Get generation status error:", error);
-    next(error);
-  }
-};
 
 /**
  * GET /api/generations/my-queue - Get user's active generation queue
@@ -196,7 +90,7 @@ export const getUserQueue = async (req, res, next) => {
 /**
  * GET /api/generations/my-generations - Get user's generation history (unified endpoint)
  * Returns all generations (pending, processing, completed, failed) in a single array
- * 
+ *
  * Query params:
  * - limit: items per page (default: 20, max: 100)
  * - cursor: cursor for pagination (base64 encoded)
@@ -209,7 +103,10 @@ export const getMyGenerations = async (req, res, next) => {
     const cursor = get(req.query, "cursor");
     // Parse includeFailed: accepts "true", "1", or true boolean
     const includeFailedParam = get(req.query, "includeFailed");
-    const includeFailed = includeFailedParam === "true" || includeFailedParam === "1" || includeFailedParam === true;
+    const includeFailed =
+      includeFailedParam === "true" ||
+      includeFailedParam === "1" ||
+      includeFailedParam === true;
 
     // Decode cursor for pagination
     const cursorData = decodeCursor(cursor);
@@ -220,7 +117,7 @@ export const getMyGenerations = async (req, res, next) => {
       GENERATION_STATUS.PROCESSING,
       GENERATION_STATUS.COMPLETED,
     ];
-    
+
     if (includeFailed) {
       statuses.push(GENERATION_STATUS.FAILED);
     }
@@ -294,7 +191,11 @@ export const getMyGenerations = async (req, res, next) => {
         }
 
         // Fetch images for completed items
-        if (gen.status === GENERATION_STATUS.COMPLETED && aiMetadata.imageIds && aiMetadata.imageIds.length > 0) {
+        if (
+          gen.status === GENERATION_STATUS.COMPLETED &&
+          aiMetadata.imageIds &&
+          aiMetadata.imageIds.length > 0
+        ) {
           const images = await db
             .select()
             .from(uploads)
@@ -308,6 +209,40 @@ export const getMyGenerations = async (req, res, next) => {
           }));
         } else if (gen.status === GENERATION_STATUS.COMPLETED) {
           result.images = [];
+        }
+
+        // Fetch reference images (both single and multiple)
+        if (gen.referenceImageId || gen.referenceImageIds) {
+          // Initialize referenceImages array and add metadata fields
+          result.referenceImages = [];
+          if (gen.referenceType) result.referenceType = gen.referenceType;
+          if (gen.targetImageId) result.targetImageId = gen.targetImageId;
+          if (gen.promptTemplateId) result.promptTemplateId = gen.promptTemplateId;
+
+          // Collect all reference IDs (JSONB fields are auto-parsed by Drizzle)
+          const refIds = [
+            ...(gen.referenceImageId ? [gen.referenceImageId] : []),
+            ...(Array.isArray(gen.referenceImageIds) ? gen.referenceImageIds : [])
+          ];
+
+          // Fetch reference images if we have IDs
+          if (refIds.length > 0) {
+            try {
+              const referenceImages = await db
+                .select()
+                .from(uploads)
+                .where(inArray(uploads.id, refIds));
+
+              result.referenceImages = referenceImages.map((refImg) => ({
+                imageId: refImg.id,
+                imageUrl: refImg.publicUrl,
+                mimeType: refImg.mimeType,
+                sizeBytes: refImg.sizeBytes,
+              }));
+            } catch (error) {
+              logger.error("Failed to fetch reference images:", error);
+            }
+          }
         }
 
         return result;

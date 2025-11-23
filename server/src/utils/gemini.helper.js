@@ -34,6 +34,16 @@ export const createGenerationRecord = async (
   const generationId = crypto.randomUUID();
 
   try {
+    // Extract reference image fields from options to save as columns
+    const {
+      referenceImageId,
+      referenceType,
+      targetImageId,
+      referenceImageIds,
+      promptTemplateId,
+      ...metadataOptions
+    } = options;
+
     const generation = await db
       .insert(imageGenerations)
       .values({
@@ -44,8 +54,15 @@ export const createGenerationRecord = async (
         status: GENERATION_STATUS.PENDING,
         model: options.model || process.env.GEMINI_MODEL || GEMINI_CONFIG.DEFAULT_MODEL,
         tokensUsed: 0,
+        // Reference image fields (as columns, not in metadata)
+        referenceImageId: referenceImageId || null,
+        referenceType: referenceType || null,
+        targetImageId: targetImageId || null,
+        referenceImageIds: referenceImageIds || null,
+        promptTemplateId: promptTemplateId || null,
+        // Metadata without reference fields (to avoid duplication)
         metadata: JSON.stringify({
-          ...options,
+          ...metadataOptions,
           startTime: new Date().toISOString(),
         }),
       })

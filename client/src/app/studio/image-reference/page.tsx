@@ -6,10 +6,12 @@ import { Image as ImageIcon } from 'lucide-react';
 import TabNavigation from '@/components/studio/TabNavigation';
 import StudioSubTabs from '@/components/studio/image-reference/StudioSubTabs';
 import SingleReferenceForm from '@/components/studio/image-reference/SingleReferenceForm';
+import MultipleReferenceForm from '@/components/studio/image-reference/MultipleReferenceForm';
 import GlassCard from '@/components/GlassCard';
 
 const SUB_TABS = [
   { id: 'single', label: 'Single Reference' },
+  { id: 'multiple', label: 'Multiple Reference' },
   { id: 'elements', label: 'Elements', disabled: true },
 ];
 
@@ -20,7 +22,13 @@ export default function ImageReferencePage() {
     <>
       <TabNavigation />
       <StudioSubTabs tabs={SUB_TABS} activeId={subTab} onChange={setSubTab} />
-      {subTab === 'single' ? <SingleReferenceForm /> : <ElementsPlaceholder />}
+      {subTab === 'single' ? (
+        <SingleReferenceForm />
+      ) : subTab === 'multiple' ? (
+        <MultipleReferenceForm />
+      ) : (
+        <ElementsPlaceholder />
+      )}
     </>
   );
 }

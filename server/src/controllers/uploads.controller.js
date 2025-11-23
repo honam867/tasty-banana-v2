@@ -1,11 +1,16 @@
 import lodash from "lodash";
-const { get, isEmpty, toNumber } = lodash;
+const { get, isEmpty, toNumber, isArray } = lodash;
 
 import { uploadToR2 } from "../config/r2.js";
 import { generateStorageKey } from "../utils/storageKey.js";
 import { HTTP_STATUS } from "../utils/constant.js";
 import { sendSuccess, throwError } from "../utils/response.js";
-import { createUpload } from "../services/uploads.service.js";
+import {
+  createUpload,
+  listUserUploads,
+  deleteUserUploadsByIds,
+  listUploads,
+} from "../services/uploads.service.js";
 import logger from "../config/logger.js";
 
 /**
@@ -88,6 +93,155 @@ export const uploadFile = async (req, res, next) => {
     }, "File uploaded successfully");
   } catch (error) {
     logger.error("Upload error:", error);
+    next(error);
+  }
+};
+
+const parsePaginationParams = (query) => {
+  const rawLimit = get(query, "limit", "20");
+  const rawOffset = get(query, "offset", "0");
+
+  const limit = parseInt(rawLimit, 10);
+  const offset = parseInt(rawOffset, 10);
+
+  if (Number.isNaN(limit) || limit < 1 || limit > 100) {
+    throwError("limit must be an integer between 1 and 100", HTTP_STATUS.BAD_REQUEST);
+  }
+
+  if (Number.isNaN(offset) || offset < 0) {
+    throwError("offset must be a non-negative integer", HTTP_STATUS.BAD_REQUEST);
+  }
+
+  return { limit, offset };
+};
+
+const serializeUpload = (record) => ({
+  id: get(record, "id"),
+  userId: get(record, "userId"),
+  threadId: get(record, "threadId"),
+  title: get(record, "title"),
+  purpose: get(record, "purpose"),
+  mimeType: get(record, "mimeType"),
+  sizeBytes: get(record, "sizeBytes"),
+  storageProvider: get(record, "storageProvider"),
+  storageBucket: get(record, "storageBucket"),
+  storageKey: get(record, "storageKey"),
+  publicUrl: get(record, "publicUrl"),
+  createdAt: get(record, "createdAt"),
+});
+
+export const getUserAssets = async (req, res, next) => {
+  try {
+    const userId = get(req, "user.id");
+    if (!userId) {
+      throwError("User not authenticated", HTTP_STATUS.UNAUTHORIZED);
+    }
+
+    const { limit, offset } = parsePaginationParams(req.query);
+
+    const { items, total } = await listUserUploads({ userId, limit, offset });
+
+    sendSuccess(
+      res,
+      {
+        assets: items.map(serializeUpload),
+        pagination: {
+          total,
+          limit,
+          offset,
+          hasMore: offset + limit < total,
+        },
+      },
+      "Assets retrieved successfully"
+    );
+  } catch (error) {
+    logger.error("Get user assets error:", error);
+    next(error);
+  }
+};
+
+export const deleteUserAssets = async (req, res, next) => {
+  try {
+    const userId = get(req, "user.id");
+    if (!userId) {
+      throwError("User not authenticated", HTTP_STATUS.UNAUTHORIZED);
+    }
+
+    const ids = get(req.body, "ids");
+
+    if (!isArray(ids) || isEmpty(ids)) {
+      throwError("ids must be a non-empty array", HTTP_STATUS.BAD_REQUEST);
+    }
+
+    const sanitizedIds = ids
+      .filter((id) => typeof id === "string")
+      .map((id) => id.trim())
+      .filter((id) => id.length > 0);
+
+    if (sanitizedIds.length !== ids.length) {
+      throwError("ids must only contain UUID strings", HTTP_STATUS.BAD_REQUEST);
+    }
+
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    const invalidIds = sanitizedIds.filter((id) => !uuidRegex.test(id));
+    if (invalidIds.length > 0) {
+      throwError(
+        `Invalid upload ids: ${invalidIds.join(", ")}`,
+        HTTP_STATUS.BAD_REQUEST
+      );
+    }
+
+    const { deletedIds } = await deleteUserUploadsByIds({ userId, ids: sanitizedIds });
+
+    sendSuccess(
+      res,
+      {
+        deletedIds,
+      },
+      "Assets deleted successfully"
+    );
+  } catch (error) {
+    logger.error("Delete user assets error:", error);
+    next(error);
+  }
+};
+
+export const getAdminAssets = async (req, res, next) => {
+  try {
+    const { limit, offset } = parsePaginationParams(req.query);
+    const userIdFilter = get(req.query, "userId");
+
+    let filterUserId = null;
+    if (!isEmpty(userIdFilter)) {
+      const trimmed = userIdFilter.trim();
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(trimmed)) {
+        throwError("userId must be a valid UUID", HTTP_STATUS.BAD_REQUEST);
+      }
+      filterUserId = trimmed;
+    }
+
+    const { items, total } = await listUploads({ limit, offset, userId: filterUserId });
+
+    sendSuccess(
+      res,
+      {
+        assets: items.map(serializeUpload),
+        pagination: {
+          total,
+          limit,
+          offset,
+          hasMore: offset + limit < total,
+        },
+        filters: {
+          userId: filterUserId,
+        },
+      },
+      "Admin assets retrieved successfully"
+    );
+  } catch (error) {
+    logger.error("Get admin assets error:", error);
     next(error);
   }
 };

@@ -1,7 +1,13 @@
 import express from "express";
-import { uploadFile } from "../controllers/uploads.controller.js";
+import {
+  uploadFile,
+  getUserAssets,
+  deleteUserAssets,
+  getAdminAssets,
+} from "../controllers/uploads.controller.js";
 import { verifyToken } from "../middlewares/tokenHandler.js";
 import upload, { requireFile, handleMulterError } from "../config/multer.js";
+import { requireAdmin } from "../middlewares/admin.middleware.js";
 
 const router = express.Router();
 
@@ -71,6 +77,12 @@ router.post(
   requireFile("file"),
   uploadFile
 );
+
+router.get("/assets", verifyToken, getUserAssets);
+
+router.delete("/asset", verifyToken, deleteUserAssets);
+
+router.get("/admin/assets", verifyToken, requireAdmin, getAdminAssets);
 
 export default router;
 

@@ -1,6 +1,8 @@
+import type { ReferenceType } from '@/types/generation';
+
 /**
  * API Configuration Constants
- * 
+ *
  * Note: BASE_URL now points to Next.js API routes (same origin)
  * This hides the actual backend URL from the browser
  */
@@ -73,4 +75,28 @@ export const HINT_TYPES = {
 
 export const IMAGE_REFERENCE_TYPES = ['subject', 'face', 'full_image'] as const;
 
+export const REFERENCE_TYPE_LABELS: Record<ReferenceType, string> = {
+  subject: 'Subject Reference',
+  face: 'Face Reference',
+  full_image: 'Full Image Reference',
+} as const;
+
 export const IMAGE_REFERENCE_TOKEN_COST = 150;
+
+/**
+ * Multiple Reference UI Limits (aligned with server validators)
+ */
+export const MULTI_REFERENCE_LIMITS = {
+  REFERENCE_MIN: 1,
+  REFERENCE_MAX: 5,
+  FILE_SIZE_MAX: 10 * 1024 * 1024,
+} as const;
+
+/**
+ * Allowed image MIME types for uploads
+ */
+export const ALLOWED_IMAGE_MIME = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+] as const;

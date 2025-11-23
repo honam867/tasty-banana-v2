@@ -1,6 +1,5 @@
 import express from "express";
 import {
-  getGenerationStatus,
   getUserQueue,
   getMyGenerations,
 } from "../controllers/generations.controller.js";
@@ -8,42 +7,6 @@ import { verifyToken } from "../middlewares/tokenHandler.js";
 import { asyncHandler } from "../middlewares/errorHandler.js";
 
 const router = express.Router();
-
-/**
- * @swagger
- * /generations/queue/{generationId}:
- *   get:
- *     summary: Get generation status and progress
- *     tags: [Generations]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: generationId
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *         description: Generation ID
- *     responses:
- *       200:
- *         description: Generation status retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Success'
- *       404:
- *         description: Generation not found
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- */
-router.get(
-  "/queue/:generationId",
-  verifyToken,
-  asyncHandler(getGenerationStatus)
-);
 
 /**
  * @swagger

@@ -15,6 +15,7 @@ import {
 import ImageGallery from "./ImageGallery";
 import type { GenerationItem as GenerationItemType } from "@/lib/api/generations";
 import { triggerImageDownload } from "@/lib/download";
+import { REFERENCE_TYPE_LABELS } from "@/lib/constants";
 
 interface GenerationItemProps {
   generation: GenerationItemType;
@@ -28,6 +29,8 @@ interface GenerationItemProps {
 function GenerationItem({ generation, isActive = false }: GenerationItemProps) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [referenceLightboxOpen, setReferenceLightboxOpen] = useState(false);
+  const [referenceLightboxIndex, setReferenceLightboxIndex] = useState(0);
   const [copied, setCopied] = useState(false);
 
   const {
@@ -38,6 +41,8 @@ function GenerationItem({ generation, isActive = false }: GenerationItemProps) {
     tokensUsed,
     error,
     processingTimeMs,
+    referenceType,
+    referenceImages,
   } = generation;
 
   const isPending = status === "pending";
@@ -45,6 +50,11 @@ function GenerationItem({ generation, isActive = false }: GenerationItemProps) {
   const isCompleted = status === "completed";
   const isFailed = status === "failed";
   const isActive_status = isPending || isProcessing;
+  const hasReferenceImages = (referenceImages?.length ?? 0) > 0;
+  const resolvedReferenceType = referenceType || metadata.referenceType;
+  const referenceTypeLabel = resolvedReferenceType
+    ? REFERENCE_TYPE_LABELS[resolvedReferenceType] || resolvedReferenceType.replace(/_/g, " ")
+    : null;
 
   const statusColors = {
     pending: "bg-yellow-500/10 text-yellow-400 border-yellow-500/30",
@@ -68,6 +78,11 @@ function GenerationItem({ generation, isActive = false }: GenerationItemProps) {
   const handleImageClick = (index: number) => {
     setLightboxIndex(index);
     setLightboxOpen(true);
+  };
+
+  const handleReferenceImageClick = (index: number) => {
+    setReferenceLightboxIndex(index);
+    setReferenceLightboxOpen(true);
   };
 
   const formatTime = (ms?: number) => {
@@ -118,6 +133,34 @@ function GenerationItem({ generation, isActive = false }: GenerationItemProps) {
               <span className="text-xs text-white/40">
                 {formatTime(processingTimeMs)}
               </span>
+            )}
+
+            {referenceTypeLabel && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-medium border border-white/15 text-white/70 bg-white/5">
+                {referenceTypeLabel}
+              </span>
+            )}
+
+            {hasReferenceImages && referenceImages && (
+              <div className="flex items-center gap-1 ml-1">
+                {referenceImages.map((img, index) => (
+                  <button
+                    key={img.imageId || `${generation.generationId}-ref-${index}`}
+                    type="button"
+                    onClick={() => handleReferenceImageClick(index)}
+                    className="w-8 h-8 rounded-lg overflow-hidden border border-white/10 hover:border-[var(--banana-gold)]/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--banana-gold)]"
+                    aria-label={`Open reference image ${index + 1}`}
+                  >
+                    <img
+                      src={img.imageUrl}
+                      alt="Reference"
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  </button>
+                ))}
+              </div>
             )}
           </div>
 
@@ -260,6 +303,19 @@ function GenerationItem({ generation, isActive = false }: GenerationItemProps) {
           onClose={() => setLightboxOpen(false)}
         />
       )}
+
+      {hasReferenceImages && referenceImages && (
+        <ImageGallery
+          key={`reference-${generation.generationId}-${
+            referenceLightboxOpen ? referenceLightboxIndex : "closed"
+          }`}
+          images={referenceImages}
+          prompt={`Reference for: ${metadata.prompt}`}
+          isOpen={referenceLightboxOpen}
+          initialIndex={referenceLightboxIndex}
+          onClose={() => setReferenceLightboxOpen(false)}
+        />
+      )}
     </>
   );
 }
@@ -272,6 +328,9 @@ export default memo(GenerationItem, (prevProps, nextProps) => {
     prevProps.isActive === nextProps.isActive &&
     prevProps.generation.status === nextProps.generation.status &&
     prevProps.generation.progress === nextProps.generation.progress &&
-    prevProps.generation.images?.length === nextProps.generation.images?.length
+    prevProps.generation.images?.length === nextProps.generation.images?.length &&
+    prevProps.generation.referenceImages?.length ===
+      nextProps.generation.referenceImages?.length &&
+    prevProps.generation.referenceType === nextProps.generation.referenceType
   );
 });

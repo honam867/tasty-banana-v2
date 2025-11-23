@@ -3,6 +3,7 @@ const { get } = lodash;
 
 import fs from "fs";
 import { getOperationTypeByName } from "../services/operationType.service.js";
+import TokenService from "../services/tokens/TokenService.js";
 import {
   queueService,
   QUEUE_NAMES,
@@ -51,6 +52,20 @@ export const textToImage = async (req, res) => {
         HTTP_STATUS.INTERNAL_SERVER_ERROR
       );
     }
+
+    // Calculate total token cost
+    const totalTokenCost = operationType.tokensPerOperation * numberOfImages;
+
+    // Check token balance BEFORE queueing (fail fast)
+    const userBalance = await TokenService.getBalance(userId);
+    if (userBalance.balance < totalTokenCost) {
+      throwError(
+        `Insufficient tokens. Need ${totalTokenCost} (${operationType.tokensPerOperation} per image × ${numberOfImages}), have ${userBalance.balance}`,
+        HTTP_STATUS.PAYMENT_REQUIRED
+      );
+    }
+
+    logger.info(`Token pre-check passed: user ${userId} has ${userBalance.balance} tokens, needs ${totalTokenCost}`);
 
     // Sanitize prompt
     const sanitizedPrompt = prompt
@@ -223,6 +238,20 @@ export const imageReference = async (req, res) => {
       );
     }
 
+    // Calculate total token cost
+    const totalTokenCost = operationType.tokensPerOperation * numberOfImages;
+
+    // Check token balance BEFORE queueing (fail fast)
+    const userBalance = await TokenService.getBalance(userId);
+    if (userBalance.balance < totalTokenCost) {
+      throwError(
+        `Insufficient tokens. Need ${totalTokenCost} (${operationType.tokensPerOperation} per image × ${numberOfImages}), have ${userBalance.balance}`,
+        HTTP_STATUS.PAYMENT_REQUIRED
+      );
+    }
+
+    logger.info(`Token pre-check passed for reference generation: user ${userId} has ${userBalance.balance} tokens, needs ${totalTokenCost}`);
+
     // Sanitize prompt
     const sanitizedPrompt = prompt
       .trim()
@@ -392,6 +421,20 @@ export const imageMultipleReference = async (req, res) => {
         HTTP_STATUS.INTERNAL_SERVER_ERROR
       );
     }
+
+    // Calculate total token cost
+    const totalTokenCost = operationType.tokensPerOperation * numberOfImages;
+
+    // Check token balance BEFORE queueing (fail fast)
+    const userBalance = await TokenService.getBalance(userId);
+    if (userBalance.balance < totalTokenCost) {
+      throwError(
+        `Insufficient tokens. Need ${totalTokenCost} (${operationType.tokensPerOperation} per image × ${numberOfImages}), have ${userBalance.balance}`,
+        HTTP_STATUS.PAYMENT_REQUIRED
+      );
+    }
+
+    logger.info(`Token pre-check passed for multiple reference generation: user ${userId} has ${userBalance.balance} tokens, needs ${totalTokenCost}`);
 
     // Process target image upload (if provided)
     if (targetImageFile) {
