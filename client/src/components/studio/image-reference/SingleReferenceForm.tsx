@@ -24,7 +24,7 @@ export default function SingleReferenceForm() {
   const [referenceType, setReferenceType] = useState<ReferenceType>('subject');
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1');
   const [numberOfImages, setNumberOfImages] = useState(1);
-  const [referenceFile, setReferenceFile] = useState<File | null>(null);
+  const [referenceFile, setReferenceFile] = useState<File | undefined>(undefined);
   const [existingReferenceId, setExistingReferenceId] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -66,7 +66,7 @@ export default function SingleReferenceForm() {
       setError(null);
       const response = await generateImageReference({
         ...payload,
-        referenceFile: !useExistingReference ? referenceFile : undefined,
+        referenceFile: !useExistingReference && referenceFile ? referenceFile : undefined,
       });
 
       if (response.success && response.data) {
@@ -81,7 +81,8 @@ export default function SingleReferenceForm() {
             aspectRatio: payload.aspectRatio || '1:1',
             projectId: payload.projectId,
             referenceType: payload.referenceType,
-            referenceImageId: response.data.referenceImageId || payload.referenceImageId,
+            referenceImageId:
+              response.data.metadata?.referenceImageId || payload.referenceImageId,
             operationType: 'image_reference',
           },
           images: [],
@@ -125,8 +126,8 @@ export default function SingleReferenceForm() {
             <div className="space-y-3">
               <UploadDropzone
                 autoUpload={false}
-                onFileSelected={(file) => setReferenceFile(file)}
-                onClear={() => setReferenceFile(null)}
+                onFileSelected={(file) => setReferenceFile(file ?? undefined)}
+                onClear={() => setReferenceFile(undefined)}
                 disabled={isGenerating}
                 valueLabel={referenceFile?.name || null}
                 onUploadingChange={setIsUploading}
@@ -138,7 +139,7 @@ export default function SingleReferenceForm() {
                 className="text-xs text-white/60 underline decoration-dotted hover:text-white transition-colors"
                 onClick={() => {
                   setUseExistingReference(true);
-                  setReferenceFile(null);
+                  setReferenceFile(undefined);
                   setError(null);
                 }}
               >
